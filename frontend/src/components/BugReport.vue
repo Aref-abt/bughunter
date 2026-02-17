@@ -524,7 +524,13 @@ const downloadReport = async () => {
 
     console.log('Starting PDF generation...');
 
-    // Configure PDF options - use original element directly with dark theme
+    // Add print mode class to trigger print styles
+    element.classList.add('print-mode');
+
+    // Wait a moment for styles to apply
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Configure PDF options with light theme (print styles will apply)
     const opt = {
       margin: [10, 10, 10, 10],
       filename: `bughunter-report-${Date.now()}.pdf`,
@@ -537,15 +543,32 @@ const downloadReport = async () => {
         useCORS: true,
         allowTaint: true,
         logging: false,
-        backgroundColor: '#0a0e1a', // Match dark theme background
+        backgroundColor: '#ffffff', // White background for light theme
         scrollY: -window.scrollY,
         scrollX: -window.scrollX,
-        width: element.scrollWidth,
-        height: element.scrollHeight,
-        windowWidth: element.scrollWidth,
-        windowHeight: element.scrollHeight,
-        imageTimeout: 0,
-        removeContainer: true
+        onclone: (clonedDoc) => {
+          // Apply print styles to the cloned document
+          const clonedElement = clonedDoc.querySelector('.space-y-6');
+          if (clonedElement) {
+            // Apply light theme inline styles
+            const applyLightTheme = (el) => {
+              el.style.background = 'white';
+              el.style.color = '#1a1a1a';
+              el.style.borderColor = '#e5e7eb';
+              el.style.backdropFilter = 'none';
+
+              if (el.classList.contains('glass-card')) {
+                el.style.background = '#f9fafb';
+                el.style.border = '1px solid #e5e7eb';
+                el.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+              }
+
+              // Recursively apply to children
+              Array.from(el.children).forEach(applyLightTheme);
+            };
+            applyLightTheme(clonedElement);
+          }
+        }
       },
       jsPDF: {
         unit: 'mm',
@@ -564,6 +587,9 @@ const downloadReport = async () => {
 
     // Generate PDF directly from original element
     await html2pdf().set(opt).from(element).save();
+
+    // Remove print mode class
+    element.classList.remove('print-mode');
 
     console.log('PDF generated successfully');
 
@@ -636,5 +662,95 @@ const downloadReport = async () => {
 /* Mermaid dark theme support */
 .mermaid-dark {
   @apply text-gray-300;
+}
+
+/* Print/PDF Styles - Convert to Light Theme */
+@media print {
+  * {
+    background: white !important;
+    color: #1a1a1a !important;
+    border-color: #e5e7eb !important;
+    backdrop-filter: none !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+  }
+
+  /* Glass cards become solid light cards */
+  .glass-card {
+    background: #f9fafb !important;
+    border: 1px solid #e5e7eb !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+  }
+
+  /* Headers */
+  h1, h2, h3, h4, h5, h6 {
+    color: #111827 !important;
+  }
+
+  /* Text colors */
+  .text-white, .text-gray-300, .text-gray-400 {
+    color: #1a1a1a !important;
+  }
+
+  .text-gray-500, .text-gray-600 {
+    color: #4b5563 !important;
+  }
+
+  /* Colored accents */
+  .text-green-400, .text-green-500 {
+    color: #059669 !important;
+  }
+
+  .text-yellow-400, .text-yellow-500 {
+    color: #d97706 !important;
+  }
+
+  .text-red-400, .text-red-500 {
+    color: #dc2626 !important;
+  }
+
+  .text-blue-400, .text-blue-500 {
+    color: #2563eb !important;
+  }
+
+  /* Code blocks */
+  pre, code {
+    background: #f3f4f6 !important;
+    color: #1f2937 !important;
+    border: 1px solid #d1d5db !important;
+  }
+
+  /* Badges and buttons */
+  .bg-green-500\/20, .bg-yellow-500\/20, .bg-red-500\/20, .bg-blue-500\/20 {
+    background: #f3f4f6 !important;
+  }
+
+  /* Remove animations and transitions */
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  /* Bug cards */
+  .bug-card {
+    background: white !important;
+    border: 1px solid #e5e7eb !important;
+    page-break-inside: avoid;
+  }
+
+  /* Images and screenshots */
+  img {
+    max-width: 100%;
+    page-break-inside: avoid;
+  }
+
+  /* Hide interactive elements */
+  button {
+    display: none !important;
+  }
+
+  /* Ensure page breaks work */
+  .glass-card {
+    page-break-inside: avoid;
+  }
 }
 </style>
