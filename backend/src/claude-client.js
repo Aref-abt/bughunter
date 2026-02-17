@@ -79,7 +79,7 @@ class ClaudeClient {
       : 'No interactive elements detected';
 
     const filledFieldsSummary = filledFields.length > 0
-      ? `\nFILLED FIELDS (DO NOT FILL AGAIN):\n${filledFields.map((f, i) => `${i + 1}. ${f}`).join('\n')}`
+      ? `\nFILLED FIELDS (DO NOT FILL AGAIN):\n${filledFields.map((f, i) => `${i + 1}. ${f}`).join('\n')}\n\n⚠️ YOU HAVE FILLED ${filledFields.length} FORM FIELD(S)! If you see a submit button, CLICK IT NOW before doing anything else!`
       : '';
 
     return `You are a QA tester exploring a web application to find bugs.
@@ -98,28 +98,30 @@ NAVIGATION CONTEXT:
 AVAILABLE INTERACTIVE ELEMENTS ON THIS PAGE (${interactiveElements.length}):
 ${elementsText}${filledFieldsSummary}
 
-INSTRUCTIONS:
-1. Analyze the screenshot and available elements carefully
-2. **CRITICAL**: NEVER fill a field marked "✅ ALREADY FILLED - SKIP THIS"
-3. Prioritize UNFILLED INPUT fields - fill them with realistic test data
+INSTRUCTIONS - FOLLOW THIS PRIORITY ORDER:
+1. **HIGHEST PRIORITY**: If you see filled form fields (marked with ✅) AND a submit button, CLICK THE SUBMIT BUTTON IMMEDIATELY - DO NOT navigate away or click other links
+2. **SECOND PRIORITY**: If unfilled form fields exist, fill them with realistic test data
+3. **CRITICAL**: NEVER fill a field marked "✅ ALREADY FILLED - SKIP THIS"
 4. Move to the NEXT unfilled field immediately after filling one
 5. For DROPDOWN elements - select an option from them (don't just click)
-6. **FORM SUBMISSION**: After filling ALL form fields, submit the form by clicking the submit button
-7. Explore different sections systematically (header, sidebar, main content, footer)
+6. After filling ALL form fields, you MUST submit the form before doing anything else
+7. Only explore other sections (header, sidebar, navigation) if no forms need submission
 8. Test one area thoroughly before moving to another
 9. For complex apps, navigate progressively deeper into workflows
 10. Avoid revisiting the same pages unless testing different functionality
 11. Look for console errors, broken links, and UI issues
 
-ELEMENT INTERACTION RULES:
+ELEMENT INTERACTION RULES - CRITICAL:
+- **SUBMIT BUTTON ALWAYS FIRST**: If form fields are filled (✅) and submit button exists, click submit BEFORE any other action
 - For INPUT/TEXTAREA elements: Use "fill" action to enter text with realistic data
 - **NEVER fill the same field twice** - check if marked "✅ ALREADY FILLED"
-- After filling a field, immediately move to the NEXT unfilled field
+- After filling a field, check if all fields are filled - if yes, SUBMIT immediately
 - For DROPDOWN elements: Use "select" action to choose an option
-- For LINK/BUTTON elements: Use "click" action to navigate or trigger
-- **For SUBMIT BUTTONS**: After filling all form fields, click the submit button to test form submission
+- For LINK/BUTTON elements: Use "click" action to navigate or trigger (BUT NOT if forms need submission)
 - Use ONLY selectors from the "AVAILABLE INTERACTIVE ELEMENTS" list
 - Prefer specific selectors (IDs, names) over generic ones
+
+⚠️ WARNING: DO NOT navigate to other pages or click navigation links if form fields are filled but not yet submitted!
 
 Respond in this EXACT format:
 ACTION: [fill|select|click|done]

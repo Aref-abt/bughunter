@@ -1,26 +1,32 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen tech-grid" style="background-color: var(--bg-primary);">
     <!-- Header -->
-    <header class="bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg">
-      <div class="container mx-auto px-6 py-6">
+    <header class="glass-card mx-4 mt-4 animate-slide-up">
+      <div class="container mx-auto px-6 py-4">
         <div class="flex items-center justify-between">
-          <div class="flex items-center space-x-4">
-            <span class="text-4xl">🐛</span>
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center glow-sm">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            </div>
             <div>
-              <h1 class="text-3xl font-bold">BugHunter</h1>
-              <p class="text-purple-100 text-sm">AI-Powered Web Testing</p>
+              <h1 class="text-xl font-bold gradient-text">BugHunter AI</h1>
+              <p class="text-gray-400 text-xs">Autonomous Web Testing Platform</p>
             </div>
           </div>
-          <div class="flex items-center space-x-2">
-            <span :class="connectionStatus.class" class="w-3 h-3 rounded-full"></span>
-            <span class="text-sm">{{ connectionStatus.text }}</span>
+          <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-2 px-3 py-1.5 rounded-full" :class="connected ? 'bg-green-500/10' : 'bg-red-500/10'">
+              <span :class="connectionStatus.class" class="w-2 h-2 rounded-full"></span>
+              <span class="text-xs font-medium" :class="connected ? 'text-green-400' : 'text-red-400'">{{ connectionStatus.text }}</span>
+            </div>
           </div>
         </div>
       </div>
     </header>
 
     <!-- Main Content -->
-    <main class="container mx-auto px-6 py-8">
+    <main class="container mx-auto px-4 py-6">
       <!-- Test Form -->
       <div v-if="!testRunning && !testComplete" class="max-w-4xl mx-auto">
         <TestForm @start-test="handleStartTest" />
@@ -46,16 +52,20 @@
       </div>
 
       <!-- Error Display -->
-      <div v-if="error" class="max-w-4xl mx-auto mt-8">
-        <div class="bg-red-50 border-l-4 border-red-500 p-6 rounded-lg">
-          <div class="flex items-start">
-            <span class="text-3xl mr-4">❌</span>
-            <div>
-              <h3 class="text-red-800 font-bold text-lg mb-2">Error Occurred</h3>
-              <p class="text-red-700">{{ error }}</p>
-              <button 
+      <div v-if="error" class="max-w-4xl mx-auto mt-8 animate-slide-up">
+        <div class="glass-card border-l-4 border-red-500 p-6">
+          <div class="flex items-start space-x-4">
+            <div class="w-12 h-12 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0">
+              <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div class="flex-1">
+              <h3 class="text-red-400 font-bold text-lg mb-2">Error Occurred</h3>
+              <p class="text-gray-300 mb-4">{{ error }}</p>
+              <button
                 @click="handleRestart"
-                class="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+                class="btn-danger"
               >
                 Try Again
               </button>
@@ -66,13 +76,13 @@
     </main>
 
     <!-- Footer -->
-    <footer class="bg-gray-800 text-gray-300 mt-16">
-      <div class="container mx-auto px-6 py-8 text-center">
-        <p class="text-sm">
-          Built with ❤️ using Vue 3, Playwright, and Claude AI
+    <footer class="glass-card mx-4 mb-4 mt-16">
+      <div class="container mx-auto px-6 py-6 text-center">
+        <p class="text-sm text-gray-400">
+          Built with <span class="text-blue-400">Vue 3</span>, <span class="text-blue-400">Playwright</span>, and <span class="text-purple-400">Claude AI</span>
         </p>
-        <p class="text-xs mt-2 text-gray-500">
-          Hackathon Project - AI Product Engineer
+        <p class="text-xs mt-2 text-gray-600">
+          © 2024 BugHunter AI • Autonomous Testing Platform
         </p>
       </div>
     </footer>

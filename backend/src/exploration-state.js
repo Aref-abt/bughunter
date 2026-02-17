@@ -118,25 +118,37 @@ class ExplorationState {
     const coverage = this.calculateCoverage();
     const loopDetection = this.detectLoopPattern();
 
+    // Check if we recently filled form fields (likely about to submit)
+    const recentFills = Array.from(this.successfulInteractions.entries())
+      .filter(([_, data]) => data.type === 'fill' && Date.now() - data.timestamp < 90000) // Last 90 seconds (increased)
+      .length;
+
+    const hasRecentFormActivity = recentFills >= 2; // If we filled 2+ fields recently, don't stop yet
+
+    // Debug logging
+    if (hasRecentFormActivity) {
+      console.log(`⏸️  Not stopping: ${recentFills} form fields filled recently (waiting for submission)`);
+    }
+
     // Stop if:
-    // 1. Max steps reached
-    if (stepCount >= maxSteps) {
+    // 1. Max steps reached (BUT NOT if we just filled a form)
+    if (stepCount >= maxSteps && !hasRecentFormActivity) {
       return { shouldStop: true, reason: 'Max steps reached' };
     }
 
-    // 2. Loop detected and reasonable coverage
-    if (loopDetection.isLoop && coverage.percentage >= 50) {
+    // 2. Loop detected and reasonable coverage (BUT NOT if we just filled a form)
+    if (loopDetection.isLoop && coverage.percentage >= 50 && !hasRecentFormActivity) {
       return { shouldStop: true, reason: 'Loop detected with 50%+ coverage' };
     }
 
-    // 3. Excellent coverage achieved
-    if (coverage.percentage >= 85 && this.visitedUrls.size >= 8) {
+    // 3. Excellent coverage achieved (BUT NOT if we just filled a form)
+    if (coverage.percentage >= 85 && this.visitedUrls.size >= 8 && !hasRecentFormActivity) {
       return { shouldStop: true, reason: 'Excellent coverage (85%+)' };
     }
 
-    // 4. Too many consecutive failures (increased threshold for better coverage)
-    if (this.consecutiveFailures >= 10) {
-      return { shouldStop: true, reason: '10+ consecutive failures' };
+    // 4. Too many consecutive failures (BUT NOT if we just filled a form)
+    if (this.consecutiveFailures >= 15 && !hasRecentFormActivity) {
+      return { shouldStop: true, reason: '15+ consecutive failures' };
     }
 
     return { shouldStop: false };

@@ -329,8 +329,8 @@ class PlaywrightRunner {
         await element.focus();
         await element.fill('');
 
-        // Type with delay (realistic) using pressSequentially
-        await element.pressSequentially(field.value, { delay: 30 });
+        // Type with delay (faster for efficiency) using pressSequentially
+        await element.pressSequentially(field.value, { delay: 10 });
 
         // Trigger input and change events for React/Vue compatibility
         await element.dispatchEvent('input', { bubbles: true });
@@ -518,7 +518,8 @@ class PlaywrightRunner {
     }
 
     try {
-      await this.page.waitForLoadState('networkidle', { timeout: 5000 });
+      // Reduced timeout for faster execution
+      await this.page.waitForLoadState('networkidle', { timeout: 2000 });
     } catch (error) {
       // Timeout is okay, page might be SPA
       console.log('⚠️  Navigation timeout (might be SPA)');
@@ -533,8 +534,8 @@ class PlaywrightRunner {
     const startTime = Date.now();
 
     try {
-      // Wait a moment for the submission to process
-      await this.page.waitForTimeout(1000);
+      // Reduced wait time for faster detection
+      await this.page.waitForTimeout(500);
 
       const currentUrl = this.page.url();
       const urlChanged = currentUrl !== originalUrl;

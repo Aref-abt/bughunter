@@ -118,7 +118,7 @@ io.on('connection', (socket) => {
 
       // Start exploration
       let stepCount = 0;
-      const maxSteps = 25; // Increased for more thorough testing
+      const maxSteps = 35; // Increased to ensure tasks complete
       const state = new ExplorationState(); // Initialize exploration state
       session.explorationState = state;
 
