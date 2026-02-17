@@ -37,18 +37,28 @@
           </svg>
           <span class="font-medium">{{ progress.message }}</span>
         </div>
-        <!-- Stop Button -->
-        <button
-          v-if="!isStoppingTest && !testStopped"
-          @click="handleStopClick"
-          class="px-4 py-2 bg-red-500/20 text-red-400 text-xs font-semibold rounded-lg hover:bg-red-500/30 border border-red-500/30 transition flex items-center space-x-1"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
-          </svg>
-          <span>Stop</span>
-        </button>
+        <!-- Guide AI and Stop Buttons -->
+        <div v-if="!isStoppingTest && !testStopped" class="flex items-center space-x-2">
+          <button
+            @click="showGuidanceModal = true"
+            class="px-4 py-2 bg-purple-500/20 text-purple-400 text-xs font-semibold rounded-lg hover:bg-purple-500/30 border border-purple-500/30 transition flex items-center space-x-1"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+            </svg>
+            <span>Guide AI</span>
+          </button>
+          <button
+            @click="handleStopClick"
+            class="px-4 py-2 bg-red-500/20 text-red-400 text-xs font-semibold rounded-lg hover:bg-red-500/30 border border-red-500/30 transition flex items-center space-x-1"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+            </svg>
+            <span>Stop</span>
+          </button>
+        </div>
         <span v-else-if="isStoppingTest" class="text-yellow-400 font-semibold text-xs flex items-center space-x-2">
           <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -136,6 +146,79 @@
         <p class="text-gray-600 text-xs mt-1">AI is analyzing your application</p>
       </div>
     </div>
+
+    <!-- AI Guidance Modal -->
+    <div v-if="showGuidanceModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
+      <div class="glass-card p-6 max-w-2xl w-full mx-4 border border-purple-500/30">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
+              <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-white">Guide the AI</h3>
+              <p class="text-gray-400 text-xs">Provide instructions for the next step</p>
+            </div>
+          </div>
+          <button @click="showGuidanceModal = false" class="text-gray-400 hover:text-white">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">
+              What should the AI do next?
+            </label>
+            <textarea
+              v-model="userGuidance"
+              placeholder="Example: Click on the login button in the header, then fill the email field with test@example.com"
+              class="w-full bg-gray-800/50 text-white border border-gray-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+              rows="4"
+            ></textarea>
+          </div>
+
+          <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+            <div class="flex items-start space-x-2">
+              <svg class="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div class="text-xs text-blue-300">
+                <p class="font-semibold mb-1">Tips:</p>
+                <ul class="list-disc list-inside space-y-0.5 text-blue-400">
+                  <li>Be specific about which element to interact with</li>
+                  <li>You can suggest what values to fill in forms</li>
+                  <li>Guide the AI to areas it's missing or stuck on</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex justify-end space-x-3">
+            <button
+              @click="showGuidanceModal = false"
+              class="px-4 py-2 bg-gray-700/50 text-gray-300 text-sm font-semibold rounded-lg hover:bg-gray-700 transition"
+            >
+              Cancel
+            </button>
+            <button
+              @click="sendGuidance"
+              :disabled="!userGuidance.trim()"
+              class="px-4 py-2 bg-purple-500/20 text-purple-400 text-sm font-semibold rounded-lg hover:bg-purple-500/30 border border-purple-500/30 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+              <span>Send Guidance</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -162,10 +245,12 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['stop-test']);
+const emit = defineEmits(['stop-test', 'send-guidance']);
 
 const isStoppingTest = ref(false);
 const testStopped = ref(false);
+const showGuidanceModal = ref(false);
+const userGuidance = ref('');
 
 const recentBugs = computed(() => {
   return props.bugsFound.slice(-3).reverse();
@@ -175,6 +260,17 @@ const handleStopClick = () => {
   if (props.sessionId && !isStoppingTest.value) {
     isStoppingTest.value = true;
     emit('stop-test', { sessionId: props.sessionId });
+  }
+};
+
+const sendGuidance = () => {
+  if (userGuidance.value.trim() && props.sessionId) {
+    emit('send-guidance', {
+      sessionId: props.sessionId,
+      guidance: userGuidance.value.trim()
+    });
+    userGuidance.value = '';
+    showGuidanceModal.value = false;
   }
 };
 
