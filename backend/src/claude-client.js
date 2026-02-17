@@ -117,17 +117,21 @@ ${elementsText}${filledFieldsSummary}
 
 INSTRUCTIONS - FOLLOW THIS PRIORITY ORDER:
 1. **ABSOLUTE HIGHEST PRIORITY**: If the testing goal mentions SPECIFIC BUTTON TEXT (e.g., "yellow button", "send message", "submit"), you MUST find and click the button that has that EXACT TEXT in the elements list - DO NOT click any other button with a generic selector!
-2. **SECOND PRIORITY**: If you see filled form fields (marked with ✅) AND a submit button, CLICK THE SUBMIT BUTTON IMMEDIATELY - DO NOT navigate away or click other links
-3. **THIRD PRIORITY**: If unfilled form fields exist, fill them with realistic test data
-4. **CRITICAL**: NEVER fill a field marked "✅ ALREADY FILLED - SKIP THIS"
-5. Move to the NEXT unfilled field immediately after filling one
+2. **EXPLORATION PRIORITY**: Explore different sections and functionality across the website - test navigation, links, buttons in header/sidebar/main content
+3. **VARIETY PRIORITY**: Test different types of interactions - don't focus on just one type (e.g., only forms). Mix navigation, clicks, and interactions.
+4. **FORM TESTING (ONCE ONLY)**: If you encounter an unfilled form that you haven't tested yet:
+   - Fill ONE form field with realistic test data
+   - If it's the last field in the form AND there's a submit button, click submit
+   - IMPORTANT: After testing ONE form successfully (filling + submitting), move on to explore other areas
+   - DO NOT spend multiple steps on the same form or similar forms - test once and move on
+5. **CRITICAL**: NEVER fill a field marked "✅ ALREADY FILLED - SKIP THIS"
 6. For DROPDOWN elements - select an option from them (don't just click)
-7. After filling ALL form fields, you MUST submit the form before doing anything else and make sure that it was submitted successfully
-8. Only explore other sections (header, sidebar, navigation) if no forms need submission
-9. Test one area thoroughly before moving to another
-10. For complex apps, navigate progressively deeper into workflows
-11. Avoid revisiting the same pages unless testing different functionality
-12. Look for console errors, broken links, and UI issues
+7. **DIVERSITY OVER DEPTH**: It's better to test many different features (navigation, links, buttons, one form) than to obsess over forms
+8. Test one area thoroughly before moving to another
+9. For complex apps, navigate progressively deeper into workflows
+10. Avoid revisiting the same pages unless testing different functionality
+11. Look for console errors, broken links, and UI issues
+12. **REMEMBER**: Forms are just ONE aspect of testing - prioritize exploring the full website functionality
 
 ELEMENT INTERACTION RULES - CRITICAL:
 - **🔴 BUTTON TEXT MATCHING IS MANDATORY**: If testing goal mentions button text (e.g., "send message", "yellow button", "submit"), you MUST:
@@ -136,13 +140,12 @@ ELEMENT INTERACTION RULES - CRITICAL:
   3. Use that button's EXACT selector - DO NOT use button[type="submit"] or any generic selector!
   Example: Goal says "click send message button" → Find [BUTTON] "Send Message" → #submitBtn → Use SELECTOR: #submitBtn
 
-- **SUBMIT BUTTON ALWAYS FIRST**: If form fields are filled (✅) and submit button exists, click submit BEFORE any other action
 - **CHECK BUTTON TEXT BEFORE CLICKING**: Look at the button text in the elements list - don't just click any button[type="submit"]
-- For INPUT/TEXTAREA elements: Use "fill" action to enter text with realistic data
+- For INPUT/TEXTAREA elements: Use "fill" action to enter text with realistic data (but limit form testing to once per form type)
 - **NEVER fill the same field twice** - check if marked "✅ ALREADY FILLED"
-- After filling a field, check if all fields are filled - if yes, SUBMIT immediately
 - For DROPDOWN elements: Use "select" action to choose an option
-- For LINK/BUTTON elements: Use "click" action to navigate or trigger (BUT NOT if forms need submission)
+- For LINK/BUTTON elements: Use "click" action to navigate or trigger - prioritize exploring different sections
+- **FORM COMPLETION**: If you've filled form fields (✅) and a submit button exists, you MAY click submit, but don't spend more than 2-3 steps on any single form
 - Use ONLY selectors from the "AVAILABLE INTERACTIVE ELEMENTS" list
 - Prefer specific selectors (IDs, names) over generic ones
 - If you navigate to the WRONG page by mistake, note it in your reasoning and continue testing from there

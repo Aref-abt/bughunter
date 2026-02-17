@@ -395,7 +395,7 @@
 import { ref, onMounted, nextTick, computed } from 'vue';
 import mermaid from 'mermaid';
 import { marked } from 'marked';
-import html2pdf from 'html2pdf.js';
+import { jsPDF } from 'jspdf';
 
 const props = defineProps({
   report: {
@@ -504,7 +504,7 @@ const openScreenshot = (screenshot) => {
   win.document.write(`<img src="data:image/png;base64,${screenshot}" style="max-width:100%; height:auto; background:#000;" />`);
 };
 
-// Download report as PDF
+// Download report as PDF - Clean structured approach using jsPDF directly
 const downloadReport = async () => {
   try {
     // Show loading state
@@ -515,83 +515,343 @@ const downloadReport = async () => {
       button.disabled = true;
     }
 
-    // Find the report container
-    const element = document.querySelector('.space-y-6');
+    console.log('Creating structured PDF with jsPDF...');
 
-    if (!element) {
-      throw new Error('Report container not found');
-    }
+    // Create new PDF document
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
 
-    console.log('Starting PDF generation...');
+    // Page settings
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 15;
+    const maxWidth = pageWidth - (margin * 2);
+    let yPos = margin;
 
-    // Add print mode class to trigger print styles
-    element.classList.add('print-mode');
-
-    // Wait a moment for styles to apply
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    // Configure PDF options with light theme (print styles will apply)
-    const opt = {
-      margin: [10, 10, 10, 10],
-      filename: `bughunter-report-${Date.now()}.pdf`,
-      image: {
-        type: 'jpeg',
-        quality: 0.98
-      },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        backgroundColor: '#ffffff', // White background for light theme
-        scrollY: -window.scrollY,
-        scrollX: -window.scrollX,
-        onclone: (clonedDoc) => {
-          // Apply print styles to the cloned document
-          const clonedElement = clonedDoc.querySelector('.space-y-6');
-          if (clonedElement) {
-            // Apply light theme inline styles
-            const applyLightTheme = (el) => {
-              el.style.background = 'white';
-              el.style.color = '#1a1a1a';
-              el.style.borderColor = '#e5e7eb';
-              el.style.backdropFilter = 'none';
-
-              if (el.classList.contains('glass-card')) {
-                el.style.background = '#f9fafb';
-                el.style.border = '1px solid #e5e7eb';
-                el.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-              }
-
-              // Recursively apply to children
-              Array.from(el.children).forEach(applyLightTheme);
-            };
-            applyLightTheme(clonedElement);
-          }
-        }
-      },
-      jsPDF: {
-        unit: 'mm',
-        format: 'a4',
-        orientation: 'portrait',
-        compress: true
-      },
-      pagebreak: {
-        mode: ['avoid-all', 'css', 'legacy'],
-        before: '.glass-card',
-        after: '.bug-card'
+    // Helper to check if we need a new page
+    const checkPageBreak = (neededHeight) => {
+      if (yPos + neededHeight > pageHeight - margin) {
+        doc.addPage();
+        yPos = margin;
+        return true;
       }
+      return false;
     };
 
-    console.log('Generating PDF with settings:', opt);
+    // Helper to sanitize text for jsPDF (remove special chars that cause encoding issues)
+    const sanitizeText = (text) => {
+      if (!text) return '';
+      // Remove or replace problematic characters
+      return String(text)
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove control characters
+        .replace(/[\u2018\u2019]/g, "'") // Smart quotes to regular quotes
+        .replace(/[\u201C\u201D]/g, '"') // Smart double quotes
+        .replace(/\u2013/g, '-') // En dash
+        .replace(/\u2014/g, '--') // Em dash
+        .replace(/\u2026/g, '...') // Ellipsis
+        .replace(/[\uD800-\uDFFF]/g, '') // Remove unpaired surrogates
+        .normalize('NFKD') // Normalize unicode
+        .replace(/[^\x00-\x7F]/g, (char) => { // Handle remaining non-ASCII
+          // Keep common characters, remove others
+          const code = char.charCodeAt(0);
+          if (code > 127 && code < 256) return char;
+          return '';
+        });
+    };
 
-    // Generate PDF directly from original element
-    await html2pdf().set(opt).from(element).save();
+    // Helper to add text with word wrap
+    const addText = (text, fontSize, fontStyle = 'normal', color = [0, 0, 0]) => {
+      const cleanText = sanitizeText(text);
+      doc.setFontSize(fontSize);
+      doc.setFont('helvetica', fontStyle);
+      doc.setTextColor(...color);
 
-    // Remove print mode class
-    element.classList.remove('print-mode');
+      const lines = doc.splitTextToSize(cleanText, maxWidth);
+      const lineHeight = fontSize * 0.4;
 
-    console.log('PDF generated successfully');
+      checkPageBreak(lines.length * lineHeight + 5);
+
+      lines.forEach(line => {
+        doc.text(line, margin, yPos);
+        yPos += lineHeight;
+      });
+
+      yPos += 3; // Extra spacing after paragraph
+    };
+
+    // Header Section
+    doc.setFillColor(59, 130, 246); // Blue background
+    doc.rect(0, 0, pageWidth, 40, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text(sanitizeText('BugHunter AI Test Report'), margin, 20);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(sanitizeText('AI-Powered Web Testing & Bug Detection'), margin, 30);
+
+    yPos = 50;
+
+    // Calculate statistics - with safe array checks
+    const bugsArray = Array.isArray(props.report.bugs) ? props.report.bugs : [];
+    const testCasesArray = Array.isArray(props.report.testCases) ? props.report.testCases : [];
+    const navigationArray = Array.isArray(props.report.navigationHistory) ? props.report.navigationHistory : [];
+    const screenshotsArray = Array.isArray(props.report.screenshots) ? props.report.screenshots : [];
+
+    const bugsBySeverity = {
+      high: bugsArray.filter(b => b.severity === 'high').length,
+      medium: bugsArray.filter(b => b.severity === 'medium').length,
+      low: bugsArray.filter(b => b.severity === 'low').length
+    };
+    const testCaseStats = {
+      passed: testCasesArray.filter(tc => tc.status === 'PASSED').length,
+      failed: testCasesArray.filter(tc => tc.status === 'FAILED').length,
+      total: testCasesArray.length
+    };
+    const pagesVisited = navigationArray.length;
+    const screenshotCount = screenshotsArray.length || bugsArray.filter(b => b.screenshot).length;
+
+    // Report Summary Section - Enhanced
+    doc.setFillColor(249, 250, 251);
+    doc.rect(margin, yPos, maxWidth, 55, 'F');
+    doc.setDrawColor(229, 231, 235);
+    doc.rect(margin, yPos, maxWidth, 55, 'S');
+
+    yPos += 8;
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(sanitizeText('Test Summary & Statistics'), margin + 5, yPos);
+
+    yPos += 8;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+
+    // Left column
+    doc.text(sanitizeText(`Target URL: ${props.report.targetUrl || 'N/A'}`), margin + 5, yPos);
+    yPos += 6;
+    doc.text(sanitizeText(`Total Bugs Found: ${props.report.bugsFound || 0}`), margin + 5, yPos);
+    yPos += 5;
+    doc.setFontSize(9);
+    doc.setTextColor(220, 38, 38);
+    doc.text(sanitizeText(`  High: ${bugsBySeverity.high}`), margin + 8, yPos);
+    yPos += 4;
+    doc.setTextColor(234, 179, 8);
+    doc.text(sanitizeText(`  Medium: ${bugsBySeverity.medium}`), margin + 8, yPos);
+    yPos += 4;
+    doc.setTextColor(34, 197, 94);
+    doc.text(sanitizeText(`  Low: ${bugsBySeverity.low}`), margin + 8, yPos);
+
+    yPos -= 13; // Reset to same line as Total Bugs
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    doc.text(sanitizeText(`Pages Visited: ${pagesVisited}`), margin + 95, yPos);
+    yPos += 6;
+    doc.text(sanitizeText(`Screenshots: ${screenshotCount}`), margin + 95, yPos);
+    yPos += 6;
+    doc.text(sanitizeText(`Test Cases: ${testCaseStats.total}`), margin + 95, yPos);
+    yPos += 5;
+    doc.setFontSize(9);
+    doc.setTextColor(34, 197, 94);
+    doc.text(sanitizeText(`  Passed: ${testCaseStats.passed}`), margin + 98, yPos);
+    yPos += 4;
+    doc.setTextColor(220, 38, 38);
+    doc.text(sanitizeText(`  Failed: ${testCaseStats.failed}`), margin + 98, yPos);
+
+    yPos += 12;
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    doc.text(sanitizeText(`Duration: ${props.report.duration || 'N/A'}`), margin + 5, yPos);
+
+    yPos += 18;
+
+    // Website Analysis Section - Enhanced
+    if (props.report.websiteAnalysis) {
+      checkPageBreak(35);
+
+      // Analysis header box
+      doc.setFillColor(219, 234, 254); // Light blue background
+      doc.rect(margin, yPos, maxWidth, 10, 'F');
+      doc.setDrawColor(59, 130, 246);
+      doc.setLineWidth(0.5);
+      doc.rect(margin, yPos, maxWidth, 10, 'S');
+
+      yPos += 7;
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 64, 175);
+      doc.text(sanitizeText('AI Website Analysis'), margin + 5, yPos);
+
+      yPos += 8;
+
+      // Analysis content box
+      const analysisLines = doc.splitTextToSize(sanitizeText(props.report.websiteAnalysis), maxWidth - 10);
+      const analysisHeight = analysisLines.length * 4 + 10;
+
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(229, 231, 235);
+      doc.setLineWidth(0.3);
+      doc.rect(margin, yPos, maxWidth, analysisHeight, 'FD');
+
+      yPos += 6;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(55, 65, 81);
+
+      analysisLines.forEach(line => {
+        doc.text(line, margin + 5, yPos);
+        yPos += 4;
+      });
+
+      yPos += 10;
+    }
+
+    // Bugs Section
+    if (props.report.bugs && props.report.bugs.length > 0) {
+      checkPageBreak(20);
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(220, 38, 38); // Red
+      doc.text(sanitizeText(`Bugs Detected (${props.report.bugs.length})`), margin, yPos);
+      yPos += 10;
+
+      for (let index = 0; index < props.report.bugs.length; index++) {
+        const bug = props.report.bugs[index];
+        const hasScreenshot = bug.screenshot && bug.screenshot.length > 0;
+        const screenshotHeight = hasScreenshot ? 60 : 0;
+        const cardHeight = 25 + screenshotHeight;
+
+        checkPageBreak(cardHeight + 10);
+
+        // Bug card background
+        doc.setFillColor(254, 242, 242); // Light red background
+        doc.rect(margin, yPos, maxWidth, cardHeight, 'F');
+        doc.setDrawColor(252, 165, 165);
+        doc.rect(margin, yPos, maxWidth, cardHeight, 'S');
+
+        // Bug number and severity
+        let cardYPos = yPos + 6;
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(153, 27, 27);
+        doc.text(sanitizeText(`Bug #${index + 1}`), margin + 3, cardYPos);
+
+        // Severity badge
+        const severityColor = bug.severity === 'high' ? [220, 38, 38] :
+                             bug.severity === 'medium' ? [234, 179, 8] : [34, 197, 94];
+        doc.setFillColor(...severityColor);
+        doc.roundedRect(maxWidth - 25, cardYPos - 4, 20, 6, 2, 2, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(8);
+        doc.text(sanitizeText((bug.severity || 'low').toUpperCase()), maxWidth - 23, cardYPos);
+
+        // Bug title
+        cardYPos += 5;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        const titleLines = doc.splitTextToSize(sanitizeText(bug.title || 'Untitled Bug'), maxWidth - 10);
+        doc.text(titleLines[0], margin + 3, cardYPos);
+
+        // Bug description
+        cardYPos += 5;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(55, 65, 81);
+        const descLines = doc.splitTextToSize(sanitizeText(bug.description || 'No description'), maxWidth - 10);
+        doc.text(descLines.slice(0, 2), margin + 3, cardYPos);
+
+        // Add screenshot if available
+        if (hasScreenshot) {
+          cardYPos += 8;
+          try {
+            const imgWidth = maxWidth - 10;
+            const imgHeight = 50;
+            doc.addImage(
+              `data:image/png;base64,${bug.screenshot}`,
+              'PNG',
+              margin + 5,
+              cardYPos,
+              imgWidth,
+              imgHeight
+            );
+          } catch (error) {
+            console.error('Error adding screenshot to PDF:', error);
+          }
+        }
+
+        yPos += cardHeight + 5;
+      }
+
+      yPos += 5;
+    }
+
+    // Test Cases Section
+    if (props.report.testCases && props.report.testCases.length > 0) {
+      checkPageBreak(20);
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(59, 130, 246); // Blue
+      doc.text(sanitizeText(`Test Cases (${props.report.testCases.length})`), margin, yPos);
+      yPos += 10;
+
+      props.report.testCases.forEach((testCase, index) => {
+        checkPageBreak(20);
+
+        // Test case row
+        const statusColor = testCase.status === 'PASSED' ? [34, 197, 94] :
+                           testCase.status === 'FAILED' ? [220, 38, 38] : [234, 179, 8];
+
+        doc.setFillColor(249, 250, 251);
+        doc.rect(margin, yPos, maxWidth, 12, 'F');
+        doc.setDrawColor(229, 231, 235);
+        doc.rect(margin, yPos, maxWidth, 12, 'S');
+
+        // Status badge
+        yPos += 4;
+        doc.setFillColor(...statusColor);
+        doc.circle(margin + 3, yPos, 1.5, 'F');
+
+        // Test number and action
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text(sanitizeText(`Test ${index + 1}:`), margin + 7, yPos);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(55, 65, 81);
+        const actionText = `${testCase.action || 'Unknown'} - ${testCase.selector || 'N/A'}`;
+        const actionLines = doc.splitTextToSize(sanitizeText(actionText), maxWidth - 30);
+        doc.text(actionLines[0], margin + 20, yPos);
+
+        yPos += 10;
+      });
+
+      yPos += 5;
+    }
+
+    // Footer on last page
+    const timestamp = new Date().toLocaleString();
+    doc.setFontSize(8);
+    doc.setTextColor(107, 114, 128);
+    doc.text(sanitizeText(`Generated by BugHunter AI - ${timestamp}`), margin, pageHeight - 10);
+
+    // Add page numbers to all pages
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(107, 114, 128);
+      doc.text(sanitizeText(`Page ${i} of ${totalPages}`), pageWidth - margin - 20, pageHeight - 10);
+    }
+
+    // Save the PDF
+    doc.save(`bughunter-report-${Date.now()}.pdf`);
+
+    console.log('PDF generated successfully with', totalPages, 'pages');
 
     // Restore button
     if (button) {
@@ -601,7 +861,7 @@ const downloadReport = async () => {
 
   } catch (error) {
     console.error('PDF generation error:', error);
-    alert(`Failed to generate PDF: ${error.message}`);
+    alert(`Failed to generate PDF: ${error.message}\n\nPlease check console for details.`);
 
     // Restore button
     const button = document.querySelector('button');
