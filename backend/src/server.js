@@ -604,23 +604,21 @@ io.on('connection', (socket) => {
       // Determine if this was a stopped test
       const isStopped = session.status === 'stopping';
 
-      // Generate website brief (skip for stopped tests to save time)
-      if (!isStopped) {
-        socket.emit('progress', {
-          message: '📝 Analyzing website and generating comprehensive report...',
-          percentage: 92
-        });
+      // Generate website brief (always, even for stopped tests)
+      socket.emit('progress', {
+        message: isStopped
+          ? '📝 Analyzing partial results and generating report...'
+          : '📝 Analyzing website and generating comprehensive report...',
+        percentage: 92
+      });
 
-        const websiteBrief = await claudeClient.generateWebsiteBrief(
-          session.screenshots,
-          session.navigationHistory,
-          session.testCases,
-          testingGoal
-        );
-        session.websiteBrief = websiteBrief;
-      } else {
-        session.websiteBrief = `Test was stopped by user after ${stepCount} steps. Partial analysis based on collected data.`;
-      }
+      const websiteBrief = await claudeClient.generateWebsiteBrief(
+        session.screenshots,
+        session.navigationHistory,
+        session.testCases,
+        testingGoal
+      );
+      session.websiteBrief = websiteBrief;
 
       // Generate final report (works with partial data)
       socket.emit('progress', {

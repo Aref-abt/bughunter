@@ -522,46 +522,51 @@ const downloadReport = async () => {
       throw new Error('Report container not found');
     }
 
-    // Create a light-themed clone for PDF generation
+    // Create a printable clone with light theme
     const clone = element.cloneNode(true);
-    clone.style.cssText = `
-      position: fixed;
-      left: -9999px;
-      top: 0;
-      width: ${element.offsetWidth}px;
-      background: white !important;
-      color: #1a1a1a !important;
-      padding: 20px;
-    `;
 
-    // Override all dark theme styles in the clone
-    const overrideStyles = document.createElement('style');
-    overrideStyles.textContent = `
-      .pdf-temp-container * {
-        background: white !important;
-        color: #1a1a1a !important;
-        border-color: #e5e7eb !important;
+    // Recursively apply light theme styles inline to all elements
+    const applyLightTheme = (el) => {
+      // Set base light theme colors
+      el.style.backgroundColor = 'white';
+      el.style.color = '#1a1a1a';
+      el.style.borderColor = '#e5e7eb';
+
+      // Handle specific element types
+      if (el.classList.contains('glass-card')) {
+        el.style.background = '#f9fafb';
+        el.style.border = '1px solid #e5e7eb';
+        el.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+        el.style.backdropFilter = 'none';
       }
-      .pdf-temp-container .glass-card {
-        background: #f9fafb !important;
-        border: 1px solid #e5e7eb !important;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+
+      if (el.tagName === 'PRE' || el.tagName === 'CODE') {
+        el.style.background = '#f3f4f6';
+        el.style.color = '#1f2937';
+        el.style.border = '1px solid #d1d5db';
       }
-      .pdf-temp-container h1, .pdf-temp-container h2, .pdf-temp-container h3 {
-        color: #111827 !important;
+
+      if (el.tagName === 'H1' || el.tagName === 'H2' || el.tagName === 'H3') {
+        el.style.color = '#111827';
       }
-      .pdf-temp-container .text-white, .pdf-temp-container .text-gray-300 {
-        color: #1a1a1a !important;
-      }
-      .pdf-temp-container pre {
-        background: #f3f4f6 !important;
-        color: #1f2937 !important;
-        border: 1px solid #d1d5db !important;
-      }
-    `;
-    document.head.appendChild(overrideStyles);
-    clone.classList.add('pdf-temp-container');
+
+      // Apply to all children
+      Array.from(el.children).forEach(applyLightTheme);
+    };
+
+    applyLightTheme(clone);
+
+    // Position clone off-screen
+    clone.style.position = 'absolute';
+    clone.style.left = '-99999px';
+    clone.style.top = '0';
+    clone.style.width = element.offsetWidth + 'px';
+    clone.style.padding = '20px';
+
     document.body.appendChild(clone);
+
+    // Wait for clone to render
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     // Configure PDF options
     const opt = {
@@ -569,7 +574,7 @@ const downloadReport = async () => {
       filename: `bughunter-report-${Date.now()}.pdf`,
       image: {
         type: 'jpeg',
-        quality: 0.98
+        quality: 0.95
       },
       html2canvas: {
         scale: 2,
@@ -577,16 +582,18 @@ const downloadReport = async () => {
         logging: false,
         backgroundColor: '#ffffff',
         scrollY: 0,
-        scrollX: 0
+        scrollX: 0,
+        windowWidth: clone.scrollWidth,
+        windowHeight: clone.scrollHeight
       },
       jsPDF: {
         unit: 'mm',
         format: 'a4',
-        orientation: 'portrait',
-        compress: true
+        orientation: 'portrait'
       },
       pagebreak: {
-        mode: ['avoid-all', 'css', 'legacy']
+        mode: ['css', 'legacy'],
+        avoid: '.glass-card'
       }
     };
 
@@ -599,7 +606,6 @@ const downloadReport = async () => {
 
     // Cleanup
     document.body.removeChild(clone);
-    document.head.removeChild(overrideStyles);
 
     // Restore button
     if (button) {
@@ -612,12 +618,10 @@ const downloadReport = async () => {
     alert(`Failed to generate PDF: ${error.message}`);
 
     // Cleanup on error
-    const clone = document.querySelector('.pdf-temp-container');
-    if (clone) document.body.removeChild(clone);
-    const styles = document.querySelector('style');
-    if (styles && styles.textContent.includes('.pdf-temp-container')) {
-      document.head.removeChild(styles);
-    }
+    const clones = document.querySelectorAll('[style*="-99999px"]');
+    clones.forEach(c => {
+      if (c.parentNode) c.parentNode.removeChild(c);
+    });
 
     // Restore button
     const button = document.querySelector('button');
