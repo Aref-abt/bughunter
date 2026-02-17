@@ -524,7 +524,7 @@ const downloadReport = async () => {
 
     console.log('Starting PDF generation...');
 
-    // Configure PDF options - use original element directly
+    // Configure PDF options - use original element directly with dark theme
     const opt = {
       margin: [10, 10, 10, 10],
       filename: `bughunter-report-${Date.now()}.pdf`,
@@ -536,17 +536,22 @@ const downloadReport = async () => {
         scale: 2,
         useCORS: true,
         allowTaint: true,
-        logging: true,
-        backgroundColor: null, // Use transparent background
+        logging: false,
+        backgroundColor: '#0a0e1a', // Match dark theme background
         scrollY: -window.scrollY,
         scrollX: -window.scrollX,
         width: element.scrollWidth,
-        height: element.scrollHeight
+        height: element.scrollHeight,
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight,
+        imageTimeout: 0,
+        removeContainer: true
       },
       jsPDF: {
         unit: 'mm',
         format: 'a4',
-        orientation: 'portrait'
+        orientation: 'portrait',
+        compress: true
       },
       pagebreak: {
         mode: ['avoid-all', 'css', 'legacy'],
@@ -561,12 +566,6 @@ const downloadReport = async () => {
     await html2pdf().set(opt).from(element).save();
 
     console.log('PDF generated successfully');
-
-    // Restore button
-    if (button) {
-      button.innerHTML = originalText;
-      button.disabled = false;
-    }
 
     // Restore button
     if (button) {
