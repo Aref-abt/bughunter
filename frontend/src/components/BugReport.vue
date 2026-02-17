@@ -522,28 +522,62 @@ const downloadReport = async () => {
       throw new Error('Report container not found');
     }
 
-    // Clone element to avoid modifying the original
+    // Create a light-themed clone for PDF generation
     const clone = element.cloneNode(true);
+    clone.style.cssText = `
+      position: fixed;
+      left: -9999px;
+      top: 0;
+      width: ${element.offsetWidth}px;
+      background: white !important;
+      color: #1a1a1a !important;
+      padding: 20px;
+    `;
 
-    // Configure PDF options with better settings
+    // Override all dark theme styles in the clone
+    const overrideStyles = document.createElement('style');
+    overrideStyles.textContent = `
+      .pdf-temp-container * {
+        background: white !important;
+        color: #1a1a1a !important;
+        border-color: #e5e7eb !important;
+      }
+      .pdf-temp-container .glass-card {
+        background: #f9fafb !important;
+        border: 1px solid #e5e7eb !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+      }
+      .pdf-temp-container h1, .pdf-temp-container h2, .pdf-temp-container h3 {
+        color: #111827 !important;
+      }
+      .pdf-temp-container .text-white, .pdf-temp-container .text-gray-300 {
+        color: #1a1a1a !important;
+      }
+      .pdf-temp-container pre {
+        background: #f3f4f6 !important;
+        color: #1f2937 !important;
+        border: 1px solid #d1d5db !important;
+      }
+    `;
+    document.head.appendChild(overrideStyles);
+    clone.classList.add('pdf-temp-container');
+    document.body.appendChild(clone);
+
+    // Configure PDF options
     const opt = {
       margin: [10, 10, 10, 10],
       filename: `bughunter-report-${Date.now()}.pdf`,
       image: {
         type: 'jpeg',
-        quality: 0.95
+        quality: 0.98
       },
       html2canvas: {
-        scale: 1.5,
+        scale: 2,
         useCORS: true,
-        logging: true,
-        letterRendering: true,
-        allowTaint: true,
-        backgroundColor: '#0a0e1a',
+        logging: false,
+        backgroundColor: '#ffffff',
         scrollY: 0,
-        scrollX: 0,
-        windowWidth: element.scrollWidth,
-        windowHeight: element.scrollHeight
+        scrollX: 0
       },
       jsPDF: {
         unit: 'mm',
@@ -552,18 +586,20 @@ const downloadReport = async () => {
         compress: true
       },
       pagebreak: {
-        mode: ['avoid-all', 'css', 'legacy'],
-        before: '.glass-card',
-        after: '.glass-card'
+        mode: ['avoid-all', 'css', 'legacy']
       }
     };
 
-    console.log('Generating PDF from element:', element);
+    console.log('Generating PDF from light-themed clone...');
 
-    // Generate PDF
-    await html2pdf().set(opt).from(element).save();
+    // Generate PDF from clone
+    await html2pdf().set(opt).from(clone).save();
 
     console.log('PDF generated successfully');
+
+    // Cleanup
+    document.body.removeChild(clone);
+    document.head.removeChild(overrideStyles);
 
     // Restore button
     if (button) {
@@ -574,6 +610,14 @@ const downloadReport = async () => {
   } catch (error) {
     console.error('PDF generation error:', error);
     alert(`Failed to generate PDF: ${error.message}`);
+
+    // Cleanup on error
+    const clone = document.querySelector('.pdf-temp-container');
+    if (clone) document.body.removeChild(clone);
+    const styles = document.querySelector('style');
+    if (styles && styles.textContent.includes('.pdf-temp-container')) {
+      document.head.removeChild(styles);
+    }
 
     // Restore button
     const button = document.querySelector('button');

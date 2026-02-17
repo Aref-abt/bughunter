@@ -140,12 +140,12 @@ io.on('connection', (socket) => {
           const existingWords = new Set(getKeyWords(existingTitle));
           const newWords = getKeyWords(newTitle);
 
-          // If 60%+ of key words match, consider it a duplicate
+          // If 50%+ of key words match, consider it a duplicate (stricter deduplication)
           if (newWords.length === 0) return false;
           const matchCount = newWords.filter(word => existingWords.has(word)).length;
           const similarity = matchCount / newWords.length;
 
-          return similarity >= 0.6;
+          return similarity >= 0.5;
         });
       };
 
@@ -154,6 +154,7 @@ io.on('connection', (socket) => {
       const maxSteps = 35; // Increased to ensure tasks complete
       const state = new ExplorationState(); // Initialize exploration state
       session.explorationState = state;
+      const testedMobileUrls = new Set(); // Track URLs already tested on mobile
 
       while (stepCount < maxSteps && session.status === 'running') {
         // Check if exploration should stop early
@@ -259,8 +260,10 @@ io.on('connection', (socket) => {
           }
         }
 
-        // 3. Mobile Responsiveness Testing (every 3 steps to save time)
-        if (stepCount % 3 === 0) {
+        // 3. Mobile Responsiveness Testing (only if URL not tested on mobile yet)
+        if (stepCount % 3 === 0 && !testedMobileUrls.has(pageUrl)) {
+          testedMobileUrls.add(pageUrl); // Mark this URL as tested on mobile
+
           socket.emit('progress', {
             message: `📱 Testing mobile responsiveness...`,
             percentage: progress
@@ -277,8 +280,6 @@ io.on('connection', (socket) => {
           const responsiveIssues = await playwrightRunner.detectResponsiveIssues();
           for (const problem of responsiveIssues) {
             const issue = {
-              id: uuidv4(),
-              bugNumber: session.bugs.length + 1,
               type: 'responsive-issue',
               severity: problem.type === 'horizontal-scroll' ? 'high' : 'medium',
               title: `Mobile: ${problem.type.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`,
@@ -286,9 +287,17 @@ io.on('connection', (socket) => {
               url: pageUrl,
               screenshot: mobileScreenshot
             };
-            session.bugs.push(issue);
-            socket.emit('bug-found', issue);
-            console.log(`📱 Mobile issue detected: ${issue.title}`);
+
+            // Check for duplicates before adding
+            if (!isSimilarBug(issue, session.bugs)) {
+              issue.id = uuidv4();
+              issue.bugNumber = session.bugs.length + 1;
+              session.bugs.push(issue);
+              socket.emit('bug-found', issue);
+              console.log(`📱 Mobile issue detected: ${issue.title}`);
+            } else {
+              console.log(`⏭️ Skipping duplicate mobile issue: ${issue.title}`);
+            }
           }
 
           // AI Visual Analysis (Mobile)
@@ -334,8 +343,6 @@ io.on('connection', (socket) => {
         const overlaps = await playwrightRunner.detectOverlappingElements();
         if (overlaps.length > 0) {
           const overlapIssue = {
-            id: uuidv4(),
-            bugNumber: session.bugs.length + 1,
             type: 'layout-issue',
             severity: 'medium',
             title: 'Overlapping Text Elements Detected',
@@ -343,9 +350,17 @@ io.on('connection', (socket) => {
             url: pageUrl,
             screenshot: screenshot
           };
-          session.bugs.push(overlapIssue);
-          socket.emit('bug-found', overlapIssue);
-          console.log(`⚠️ Layout issue detected: Overlapping elements`);
+
+          // Check for duplicates before adding
+          if (!isSimilarBug(overlapIssue, session.bugs)) {
+            overlapIssue.id = uuidv4();
+            overlapIssue.bugNumber = session.bugs.length + 1;
+            session.bugs.push(overlapIssue);
+            socket.emit('bug-found', overlapIssue);
+            console.log(`⚠️ Layout issue detected: Overlapping elements`);
+          } else {
+            console.log(`⏭️ Skipping duplicate overlap issue`);
+          }
         }
 
         // Save screenshot and navigation
