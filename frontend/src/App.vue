@@ -40,6 +40,7 @@
           :bugsFound="bugsFound"
           :sessionId="sessionId"
           @stop-test="handleStopTest"
+          @send-guidance="handleSendGuidance"
         />
       </div>
 
@@ -128,6 +129,12 @@ const connectionStatus = computed(() => {
 const handleStopTest = (data) => {
   console.log('Stopping test for session:', data.sessionId);
   socketClient.emit('stop-test', data);
+};
+
+// Handle send guidance
+const handleSendGuidance = (data) => {
+  console.log('💬 Sending guidance for session:', data.sessionId);
+  socketClient.emit('send-guidance', data);
 };
 
 // Handle test start

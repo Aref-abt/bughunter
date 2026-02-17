@@ -76,6 +76,7 @@ io.on('connection', (socket) => {
         screenshots: [],
         navigationHistory: [],
         websiteBrief: null, // AI-generated website analysis
+        userGuidance: null, // User guidance for next AI decision
         status: 'running'
       };
       activeSessions.set(sessionId, session);
@@ -394,8 +395,15 @@ io.on('connection', (socket) => {
           testingGoal,
           session.navigationHistory,
           interactiveElements,
-          state
+          state,
+          session.userGuidance // Include user guidance if available
         );
+
+        // Clear guidance after AI uses it
+        if (session.userGuidance) {
+          console.log(`✅ AI incorporated user guidance`);
+          session.userGuidance = null;
+        }
 
         socket.emit('ai-decision', { 
           step: stepCount,
@@ -709,6 +717,29 @@ io.on('connection', (socket) => {
     socket.emit('progress', {
       message: 'Stopping test and cleaning up...',
       percentage: 95
+    });
+  });
+
+  socket.on('send-guidance', async (data) => {
+    const { sessionId, guidance } = data;
+    const session = activeSessions.get(sessionId);
+
+    if (!session) {
+      socket.emit('error', { message: 'Session not found' });
+      return;
+    }
+
+    if (session.status !== 'running') {
+      socket.emit('error', { message: 'Cannot send guidance - test is not running' });
+      return;
+    }
+
+    console.log(`💬 User guidance received for session ${sessionId}: "${guidance}"`);
+    session.userGuidance = guidance;
+
+    socket.emit('progress', {
+      message: '💬 Guidance received - AI will incorporate in next step...',
+      percentage: session.navigationHistory.length * 3
     });
   });
 

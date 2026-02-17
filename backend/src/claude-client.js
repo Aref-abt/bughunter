@@ -4,9 +4,9 @@ class ClaudeClient {
     this.baseUrl = 'https://api.anthropic.com/v1/messages';
   }
 
-  async analyzePageAndDecide(screenshot, pageTitle, pageUrl, testingGoal, navigationHistory, interactiveElements = [], explorationState = null) {
+  async analyzePageAndDecide(screenshot, pageTitle, pageUrl, testingGoal, navigationHistory, interactiveElements = [], explorationState = null, userGuidance = null) {
     try {
-      const prompt = this.buildPrompt(pageTitle, pageUrl, testingGoal, navigationHistory, interactiveElements, explorationState);
+      const prompt = this.buildPrompt(pageTitle, pageUrl, testingGoal, navigationHistory, interactiveElements, explorationState, userGuidance);
 
       const response = await fetch(this.baseUrl, {
         method: 'POST',
@@ -60,7 +60,7 @@ class ClaudeClient {
     }
   }
 
-  buildPrompt(pageTitle, pageUrl, testingGoal, navigationHistory, interactiveElements = [], explorationState = null) {
+  buildPrompt(pageTitle, pageUrl, testingGoal, navigationHistory, interactiveElements = [], explorationState = null, userGuidance = null) {
     const historyText = navigationHistory.map((h, i) =>
       `${i + 1}. ${h.title} (${h.url})`
     ).join('\n');
@@ -82,6 +82,16 @@ class ClaudeClient {
       ? `\nFILLED FIELDS (DO NOT FILL AGAIN):\n${filledFields.map((f, i) => `${i + 1}. ${f}`).join('\n')}\n\n⚠️ YOU HAVE FILLED ${filledFields.length} FORM FIELD(S)! If you see a submit button, CLICK IT NOW before doing anything else!`
       : '';
 
+    // User guidance section
+    const guidanceSection = userGuidance
+      ? `\n🚨 USER GUIDANCE - FOLLOW THIS INSTRUCTION FOR YOUR NEXT ACTION:
+"${userGuidance}"
+
+This is a direct instruction from the user. You MUST follow this guidance for your next action.
+Look through the AVAILABLE INTERACTIVE ELEMENTS list to find the element the user is describing and use it.
+`
+      : '';
+
     return `You are a QA tester exploring a web application to find bugs.
 
 CURRENT PAGE:
@@ -89,7 +99,7 @@ Title: ${pageTitle}
 URL: ${pageUrl}
 
 TESTING GOAL: ${testingGoal || 'General exploration to find bugs'}
-
+${guidanceSection}
 🔴 CRITICAL RULE - READ FIRST:
 If the testing goal mentions ANY button text or button description (examples: "send message", "yellow button", "submit button", "contact us"), you MUST:
 1. Look through AVAILABLE INTERACTIVE ELEMENTS below for [BUTTON] entries
