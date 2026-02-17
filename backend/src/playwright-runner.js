@@ -809,6 +809,253 @@ class PlaywrightRunner {
     return elements;
   }
 
+  async detectSecurityIssues(pageUrl) {
+    const issues = [];
+
+    try {
+      // Check if using HTTP instead of HTTPS
+      if (pageUrl.startsWith('http://') && !pageUrl.startsWith('http://localhost') && !pageUrl.startsWith('http://127.0.0.1')) {
+        issues.push({
+          type: 'security-issue',
+          severity: 'high',
+          title: 'Insecure HTTP Connection',
+          description: 'Website is using HTTP instead of HTTPS. This means data transmitted is not encrypted and vulnerable to interception, man-in-the-middle attacks, and tampering.',
+          url: pageUrl
+        });
+      }
+
+      // Check for mixed content warnings
+      const mixedContent = await this.page.evaluate(() => {
+        const images = Array.from(document.querySelectorAll('img[src^="http:"]'));
+        const scripts = Array.from(document.querySelectorAll('script[src^="http:"]'));
+        const links = Array.from(document.querySelectorAll('link[href^="http:"]'));
+
+        return {
+          hasInsecureImages: images.length > 0,
+          hasInsecureScripts: scripts.length > 0,
+          hasInsecureLinks: links.length > 0,
+          count: images.length + scripts.length + links.length
+        };
+      });
+
+      if (pageUrl.startsWith('https://') && mixedContent.count > 0) {
+        issues.push({
+          type: 'security-issue',
+          severity: 'medium',
+          title: 'Mixed Content Warning',
+          description: `Page loaded over HTTPS but contains ${mixedContent.count} insecure HTTP resources (${mixedContent.hasInsecureImages ? 'images' : ''}${mixedContent.hasInsecureScripts ? ', scripts' : ''}${mixedContent.hasInsecureLinks ? ', stylesheets' : ''}). This weakens security and may trigger browser warnings.`,
+          url: pageUrl
+        });
+      }
+
+      return issues;
+    } catch (error) {
+      console.error('Error detecting security issues:', error.message);
+      return issues;
+    }
+  }
+
+  async setMobileViewport() {
+    // iPhone 12 Pro viewport - setting viewport size is sufficient for mobile testing
+    await this.page.setViewportSize({ width: 375, height: 667 });
+  }
+
+  async setDesktopViewport() {
+    // Standard desktop viewport
+    await this.page.setViewportSize({ width: 1280, height: 720 });
+  }
+
+  async detectResponsiveIssues() {
+    const issues = [];
+
+    try {
+      const responsiveProblems = await this.page.evaluate(() => {
+        const problems = [];
+
+        // Check for horizontal overflow
+        const bodyWidth = document.body.scrollWidth;
+        const viewportWidth = window.innerWidth;
+
+        if (bodyWidth > viewportWidth) {
+          problems.push({
+            type: 'horizontal-scroll',
+            description: `Page requires horizontal scrolling (body width: ${bodyWidth}px, viewport: ${viewportWidth}px). Content extends beyond viewport.`
+          });
+        }
+
+        // Check for tiny touch targets on mobile
+        const buttons = Array.from(document.querySelectorAll('button, a, input[type="button"], input[type="submit"]'));
+        const tinyButtons = buttons.filter(btn => {
+          const rect = btn.getBoundingClientRect();
+          return (rect.width > 0 && rect.height > 0) && (rect.width < 44 || rect.height < 44);
+        }).length;
+
+        if (tinyButtons > 0) {
+          problems.push({
+            type: 'small-touch-targets',
+            description: `Found ${tinyButtons} buttons/links smaller than 44x44px (Apple's minimum recommended touch target size). These are difficult to tap on mobile devices.`
+          });
+        }
+
+        // Check for text too small
+        const textElements = Array.from(document.querySelectorAll('p, span, div, li, td, th'));
+        const tinyText = textElements.filter(el => {
+          const style = window.getComputedStyle(el);
+          const fontSize = parseFloat(style.fontSize);
+          return fontSize > 0 && fontSize < 14 && el.textContent.trim().length > 10;
+        }).length;
+
+        if (tinyText > 5) {
+          problems.push({
+            type: 'small-text',
+            description: `Found ${tinyText} text elements with font size below 14px. Text may be difficult to read on mobile devices.`
+          });
+        }
+
+        // Check for images not constrained
+        const images = Array.from(document.querySelectorAll('img'));
+        const oversizedImages = images.filter(img => {
+          const rect = img.getBoundingClientRect();
+          return rect.width > viewportWidth;
+        }).length;
+
+        if (oversizedImages > 0) {
+          problems.push({
+            type: 'oversized-images',
+            description: `Found ${oversizedImages} images wider than viewport. Images should be responsive (max-width: 100%).`
+          });
+        }
+
+        return problems;
+      });
+
+      return responsiveProblems;
+    } catch (error) {
+      console.error('Error detecting responsive issues:', error.message);
+      return issues;
+    }
+  }
+
+  async detectOverlappingElements() {
+    try {
+      const overlaps = await this.page.evaluate(() => {
+        const allElements = Array.from(document.querySelectorAll('*')).filter(el => {
+          const style = window.getComputedStyle(el);
+          return style.display !== 'none' && style.visibility !== 'hidden' && el.offsetParent !== null;
+        });
+
+        const overlapping = [];
+
+        for (let i = 0; i < Math.min(allElements.length, 100); i++) {
+          const el1 = allElements[i];
+          const rect1 = el1.getBoundingClientRect();
+
+          // Skip if rect is too small or zero
+          if (rect1.width < 10 || rect1.height < 10) continue;
+
+          for (let j = i + 1; j < Math.min(allElements.length, 100); j++) {
+            const el2 = allElements[j];
+
+            // Skip if el2 is a child of el1 or vice versa
+            if (el1.contains(el2) || el2.contains(el1)) continue;
+
+            const rect2 = el2.getBoundingClientRect();
+
+            // Skip if rect is too small or zero
+            if (rect2.width < 10 || rect2.height < 10) continue;
+
+            // Check for overlap
+            const overlap = !(
+              rect1.right < rect2.left ||
+              rect1.left > rect2.right ||
+              rect1.bottom < rect2.top ||
+              rect1.top > rect2.bottom
+            );
+
+            if (overlap) {
+              // Check if it's text overlapping text (more serious)
+              const el1HasText = el1.textContent.trim().length > 0;
+              const el2HasText = el2.textContent.trim().length > 0;
+
+              if (el1HasText && el2HasText) {
+                overlapping.push({
+                  type: 'text-overlap',
+                  element1: el1.tagName,
+                  element2: el2.tagName,
+                  text1: el1.textContent.trim().substring(0, 50),
+                  text2: el2.textContent.trim().substring(0, 50)
+                });
+                break; // Found overlap, move to next element
+              }
+            }
+          }
+
+          // Limit results
+          if (overlapping.length >= 5) break;
+        }
+
+        return overlapping;
+      });
+
+      return overlaps;
+    } catch (error) {
+      console.error('Error detecting overlapping elements:', error.message);
+      return [];
+    }
+  }
+
+  async annotateScreenshot(base64Screenshot, coordinates, viewportSize = { width: 1280, height: 720 }) {
+    try {
+      const sharp = require('sharp');
+
+      // Convert base64 to buffer
+      const imgBuffer = Buffer.from(base64Screenshot, 'base64');
+
+      // Calculate pixel coordinates from percentages
+      const left = Math.round((coordinates.left / 100) * viewportSize.width);
+      const top = Math.round((coordinates.top / 100) * viewportSize.height);
+      const width = Math.round((coordinates.width / 100) * viewportSize.width);
+      const height = Math.round((coordinates.height / 100) * viewportSize.height);
+
+      // Create SVG overlay with clean red rectangle highlighting
+      const svg = `
+        <svg width="${viewportSize.width}" height="${viewportSize.height}">
+          <!-- Clean red rectangle highlighting the issue -->
+          <rect x="${left}" y="${top}" width="${width}" height="${height}"
+                fill="rgba(255,0,0,0.2)"
+                stroke="#ff0000"
+                stroke-width="3"
+                rx="4" />
+          <!-- Inner dashed border for better visibility -->
+          <rect x="${left + 2}" y="${top + 2}" width="${width - 4}" height="${height - 4}"
+                fill="none"
+                stroke="#ff6666"
+                stroke-width="2"
+                stroke-dasharray="8,4"
+                rx="3" />
+        </svg>
+      `;
+
+      // Composite the SVG overlay onto the image
+      const annotated = await sharp(imgBuffer)
+        .composite([{
+          input: Buffer.from(svg),
+          top: 0,
+          left: 0
+        }])
+        .png()
+        .toBuffer();
+
+      // Convert back to base64
+      return annotated.toString('base64');
+
+    } catch (error) {
+      console.error('❌ Error annotating screenshot:', error.message);
+      // Return original screenshot if annotation fails
+      return base64Screenshot;
+    }
+  }
+
   async close() {
     if (this.browser) {
       await this.browser.close();

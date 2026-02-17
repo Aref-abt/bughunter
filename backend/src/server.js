@@ -116,6 +116,39 @@ io.on('connection', (socket) => {
         percentage: 40 
       });
 
+      // Helper function to check if a bug is similar to existing ones (smart deduplication)
+      const isSimilarBug = (newBug, existingBugs) => {
+        return existingBugs.some(existing => {
+          // Same type is required
+          if (existing.type !== newBug.type) return false;
+
+          // For security issues, one per type is enough (e.g., only report HTTP once)
+          if (newBug.type === 'security-issue') return true;
+
+          // For other issues, check title similarity using keyword matching
+          const existingTitle = existing.title.toLowerCase();
+          const newTitle = newBug.title.toLowerCase();
+
+          // Extract key words (ignore common words)
+          const commonWords = ['the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'mobile:', 'issue', 'problem', 'detected'];
+          const getKeyWords = (title) => {
+            return title.split(/\s+/)
+              .filter(word => word.length > 3 && !commonWords.includes(word))
+              .map(word => word.replace(/[^a-z0-9]/g, ''));
+          };
+
+          const existingWords = new Set(getKeyWords(existingTitle));
+          const newWords = getKeyWords(newTitle);
+
+          // If 60%+ of key words match, consider it a duplicate
+          if (newWords.length === 0) return false;
+          const matchCount = newWords.filter(word => existingWords.has(word)).length;
+          const similarity = matchCount / newWords.length;
+
+          return similarity >= 0.6;
+        });
+      };
+
       // Start exploration
       let stepCount = 0;
       const maxSteps = 35; // Increased to ensure tasks complete
@@ -164,6 +197,155 @@ io.on('connection', (socket) => {
           };
           session.bugs.push(bug);
           socket.emit('bug-found', bug);
+        }
+
+        // === COMPREHENSIVE VISUAL QA ANALYSIS ===
+
+        // 1. Security Analysis (HTTP vs HTTPS)
+        socket.emit('progress', {
+          message: `🔒 Checking security (HTTP/HTTPS)...`,
+          percentage: progress
+        });
+
+        const securityIssues = await playwrightRunner.detectSecurityIssues(pageUrl);
+        for (const issue of securityIssues) {
+          // Check if this issue was already reported (smart similarity check)
+          if (!isSimilarBug(issue, session.bugs)) {
+            issue.id = uuidv4();
+            issue.bugNumber = session.bugs.length + 1;
+            issue.screenshot = screenshot;
+            session.bugs.push(issue);
+            socket.emit('bug-found', issue);
+            console.log(`🔒 Security issue detected: ${issue.title}`);
+          } else {
+            console.log(`⏭️ Skipping duplicate: ${issue.title}`);
+          }
+        }
+
+        // 2. Visual Quality Analysis by AI (Desktop)
+        socket.emit('progress', {
+          message: `👁️ AI analyzing visual quality (desktop)...`,
+          percentage: progress
+        });
+
+        const visualBugs = await claudeClient.analyzeVisualQuality(
+          screenshot,
+          pageTitle,
+          pageUrl,
+          'desktop'
+        );
+
+        for (const bug of visualBugs) {
+          // Check if this visual issue was already reported (smart similarity check)
+          if (!isSimilarBug(bug, session.bugs)) {
+            bug.id = uuidv4();
+            bug.bugNumber = session.bugs.length + 1;
+
+            // Annotate screenshot with red rectangle if coordinates provided
+            if (bug.coordinates) {
+              console.log(`🔴 Annotating screenshot for: ${bug.title}`);
+              bug.screenshot = await playwrightRunner.annotateScreenshot(
+                bug.screenshot,
+                bug.coordinates,
+                { width: 1280, height: 720 }
+              );
+            }
+
+            session.bugs.push(bug);
+            socket.emit('bug-found', bug);
+            console.log(`👁️ Visual issue detected: ${bug.title} (${bug.type})`);
+          } else {
+            console.log(`⏭️ Skipping duplicate visual issue: ${bug.title}`);
+          }
+        }
+
+        // 3. Mobile Responsiveness Testing (every 3 steps to save time)
+        if (stepCount % 3 === 0) {
+          socket.emit('progress', {
+            message: `📱 Testing mobile responsiveness...`,
+            percentage: progress
+          });
+
+          // Switch to mobile viewport
+          await playwrightRunner.setMobileViewport();
+          await playwrightRunner.page.waitForLoadState('domcontentloaded', { timeout: 2000 }).catch(() => {});
+
+          // Take mobile screenshot
+          const mobileScreenshot = await playwrightRunner.takeScreenshot();
+
+          // Detect responsive issues
+          const responsiveIssues = await playwrightRunner.detectResponsiveIssues();
+          for (const problem of responsiveIssues) {
+            const issue = {
+              id: uuidv4(),
+              bugNumber: session.bugs.length + 1,
+              type: 'responsive-issue',
+              severity: problem.type === 'horizontal-scroll' ? 'high' : 'medium',
+              title: `Mobile: ${problem.type.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`,
+              description: problem.description,
+              url: pageUrl,
+              screenshot: mobileScreenshot
+            };
+            session.bugs.push(issue);
+            socket.emit('bug-found', issue);
+            console.log(`📱 Mobile issue detected: ${issue.title}`);
+          }
+
+          // AI Visual Analysis (Mobile)
+          const mobileVisualBugs = await claudeClient.analyzeVisualQuality(
+            mobileScreenshot,
+            pageTitle,
+            pageUrl,
+            'mobile'
+          );
+
+          for (const bug of mobileVisualBugs) {
+            bug.title = `Mobile: ${bug.title}`;
+
+            // Check if this mobile issue was already reported (smart similarity check)
+            if (!isSimilarBug(bug, session.bugs)) {
+              bug.id = uuidv4();
+              bug.bugNumber = session.bugs.length + 1;
+
+              // Annotate mobile screenshot with red rectangle if coordinates provided
+              if (bug.coordinates) {
+                console.log(`🔴 Annotating mobile screenshot for: ${bug.title}`);
+                bug.screenshot = await playwrightRunner.annotateScreenshot(
+                  bug.screenshot,
+                  bug.coordinates,
+                  { width: 375, height: 667 }
+                );
+              }
+
+              session.bugs.push(bug);
+              socket.emit('bug-found', bug);
+              console.log(`📱 Mobile visual issue: ${bug.title}`);
+            } else {
+              console.log(`⏭️ Skipping duplicate mobile issue: ${bug.title}`);
+            }
+          }
+
+          // Switch back to desktop
+          await playwrightRunner.setDesktopViewport();
+          await playwrightRunner.page.waitForLoadState('domcontentloaded', { timeout: 2000 }).catch(() => {});
+        }
+
+        // 4. Detect Overlapping Elements (programmatically)
+        const overlaps = await playwrightRunner.detectOverlappingElements();
+        if (overlaps.length > 0) {
+          const overlapIssue = {
+            id: uuidv4(),
+            bugNumber: session.bugs.length + 1,
+            type: 'layout-issue',
+            severity: 'medium',
+            title: 'Overlapping Text Elements Detected',
+            description: `Found ${overlaps.length} instances of overlapping text elements: ${overlaps.map(o => `"${o.text1.substring(0, 30)}" overlaps "${o.text2.substring(0, 30)}"`).join('; ')}`,
+            url: pageUrl,
+            screenshot: screenshot
+          };
+          session.bugs.push(overlapIssue);
+          socket.emit('bug-found', overlapIssue);
+          console.log(`⚠️ Layout issue detected: Overlapping elements`);
         }
 
         // Save screenshot and navigation

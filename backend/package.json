@@ -7,16 +7,21 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js"
   },
-  "keywords": ["ai", "testing", "automation"],
+  "keywords": [
+    "ai",
+    "testing",
+    "automation"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2",
-    "socket.io": "^4.7.2",
-    "playwright": "^1.40.0",
     "canvas": "^2.11.2",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "playwright": "^1.40.0",
+    "sharp": "^0.34.5",
+    "socket.io": "^4.7.2",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
