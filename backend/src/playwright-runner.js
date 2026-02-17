@@ -11,16 +11,61 @@ class PlaywrightRunner {
   async launch() {
     this.browser = await chromium.launch({
       headless: false, // Show browser for demo purposes
-      slowMo: 100 // Slow down for visibility
+      slowMo: 100, // Slow down for visibility
+      args: [
+        '--disable-blink-features=AutomationControlled', // Hide automation
+        '--disable-dev-shm-usage',
+        '--disable-setuid-sandbox',
+        '--no-sandbox'
+      ]
     });
 
     this.context = await this.browser.newContext({
       viewport: { width: 1920, height: 1080 },
       ignoreHTTPSErrors: true,
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      extraHTTPHeaders: {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1'
+      }
     });
 
     this.page = await this.context.newPage();
+
+    // Hide webdriver flag and other automation indicators
+    await this.page.addInitScript(() => {
+      // Remove webdriver flag
+      Object.defineProperty(navigator, 'webdriver', {
+        get: () => undefined
+      });
+
+      // Add realistic plugins
+      Object.defineProperty(navigator, 'plugins', {
+        get: () => [1, 2, 3, 4, 5]
+      });
+
+      // Add realistic languages
+      Object.defineProperty(navigator, 'languages', {
+        get: () => ['en-US', 'en']
+      });
+
+      // Chrome runtime
+      window.chrome = {
+        runtime: {}
+      };
+
+      // Permissions
+      const originalQuery = window.navigator.permissions.query;
+      window.navigator.permissions.query = (parameters) => (
+        parameters.name === 'notifications' ?
+          Promise.resolve({ state: Notification.permission }) :
+          originalQuery(parameters)
+      );
+    });
 
     // Capture console errors
     this.page.on('console', (msg) => {
