@@ -5,7 +5,7 @@ services:
     env: node
     region: oregon
     plan: free
-    buildCommand: cd backend && npm install && npx playwright install --with-deps
+    buildCommand: cd backend && npm install && npx playwright install chromium
     startCommand: cd backend && npm start
     envVars:
       - key: NODE_ENV
