@@ -9,9 +9,10 @@ class PlaywrightRunner {
   }
 
   async launch() {
+    const isProduction = process.env.NODE_ENV === 'production';
     this.browser = await chromium.launch({
-      headless: false, // Show browser for demo purposes
-      slowMo: 100, // Slow down for visibility
+      headless: isProduction ? true : false, // Headless in production, visible in dev
+      slowMo: isProduction ? 0 : 100, // No slowdown in production
       args: [
         '--disable-blink-features=AutomationControlled', // Hide automation
         '--disable-dev-shm-usage',
