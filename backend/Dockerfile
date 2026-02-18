@@ -11,8 +11,8 @@ ENV PLAYWRIGHT_CHROMIUM_USE_HEADLESS_NEW=1
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install dependencies (use install instead of ci for Railway)
+RUN npm install --omit=dev
 
 # Copy application code
 COPY . .
