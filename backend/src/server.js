@@ -13,15 +13,36 @@ const ExplorationState = require('./exploration-state');
 
 const app = express();
 const server = http.createServer(app);
+
+// CORS configuration for Socket.io
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
+// In production, also allow all .onrender.com domains
+const corsOriginValidator = (origin, callback) => {
+  if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.onrender.com')) {
+    callback(null, true);
+  } else {
+    callback(new Error('Not allowed by CORS'));
+  }
+};
+
 const io = socketIo(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-    methods: ['GET', 'POST']
+    origin: corsOriginValidator,
+    methods: ['GET', 'POST'],
+    credentials: true
   }
 });
 
 // Middleware here
-app.use(cors());
+app.use(cors({
+  origin: corsOriginValidator,
+  credentials: true
+}));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static('public'));
 
