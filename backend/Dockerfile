@@ -17,8 +17,8 @@ RUN npm ci --only=production
 # Copy application code
 COPY . .
 
-# Expose port
-EXPOSE 10000
+# Expose ports (8080 for Fly.io, 10000 for Render)
+EXPOSE 8080 10000
 
 # Start the application with memory constraints and garbage collection
 CMD ["node", "--max-old-space-size=384", "--expose-gc", "src/server.js"]
