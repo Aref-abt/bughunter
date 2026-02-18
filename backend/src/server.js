@@ -702,12 +702,38 @@ io.on('connection', (socket) => {
         percentage: 95
       });
 
-      const report = await reportGenerator.generate({
-        ...session,
-        isPartial: isStopped,
-        stepsCompleted: stepCount,
-        maxStepsPlanned: maxSteps
-      });
+      let report;
+      try {
+        console.log('📊 Starting report generation...');
+        report = await Promise.race([
+          reportGenerator.generate({
+            ...session,
+            isPartial: isStopped,
+            stepsCompleted: stepCount,
+            maxStepsPlanned: maxSteps
+          }),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Report generation timeout')), 30000)
+          )
+        ]);
+        console.log('✅ Report generated successfully');
+      } catch (reportError) {
+        console.error('⚠️  Report generation failed:', reportError.message);
+        // Create minimal report on failure
+        report = {
+          summary: {
+            targetUrl: testingGoal,
+            bugsFound: session.bugs.length,
+            pagesVisited: session.navigationHistory.length,
+            testDuration: `${Math.floor((Date.now() - session.startTime) / 1000)}s`
+          },
+          bugs: session.bugs || [],
+          testCases: session.testCases || [],
+          screenshots: session.screenshots || [],
+          websiteBrief: session.websiteBrief || 'Analysis unavailable',
+          isPartial: isStopped
+        };
+      }
 
       socket.emit('progress', {
         message: isStopped ? '✅ Partial results ready!' : '✅ Test complete!',
@@ -715,6 +741,7 @@ io.on('connection', (socket) => {
       });
 
       // Send appropriate event based on completion type
+      console.log(`📤 Emitting ${isStopped ? 'test-stopped' : 'test-complete'} event...`);
       if (isStopped) {
         socket.emit('test-stopped', {
           sessionId,
@@ -725,6 +752,7 @@ io.on('connection', (socket) => {
           stepsCompleted: stepCount,
           isPartial: true
         });
+        console.log('✅ test-stopped event emitted');
       } else {
         socket.emit('test-complete', {
           sessionId,
@@ -733,6 +761,7 @@ io.on('connection', (socket) => {
           pagesVisited: session.navigationHistory.length,
           duration: Date.now() - session.startTime
         });
+        console.log('✅ test-complete event emitted');
       }
 
       // Cleanup
