@@ -10,19 +10,42 @@ class PlaywrightRunner {
 
   async launch() {
     const isProduction = process.env.NODE_ENV === 'production';
+
+    // Memory-optimized args for production (Render free tier has only 512MB)
+    const productionArgs = [
+      '--disable-blink-features=AutomationControlled',
+      '--disable-dev-shm-usage', // Use /tmp instead of /dev/shm
+      '--disable-setuid-sandbox',
+      '--no-sandbox',
+      '--disable-gpu', // Disable GPU acceleration
+      '--disable-software-rasterizer',
+      '--disable-extensions',
+      '--disable-background-networking',
+      '--disable-background-timer-throttling',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-renderer-backgrounding',
+      '--disable-sync',
+      '--single-process', // Run in single process (saves memory)
+      '--no-zygote' // Don't use zygote process
+    ];
+
+    const devArgs = [
+      '--disable-blink-features=AutomationControlled',
+      '--disable-dev-shm-usage',
+      '--disable-setuid-sandbox',
+      '--no-sandbox'
+    ];
+
     this.browser = await chromium.launch({
-      headless: isProduction ? true : false, // Headless in production, visible in dev
-      slowMo: isProduction ? 0 : 100, // No slowdown in production
-      args: [
-        '--disable-blink-features=AutomationControlled', // Hide automation
-        '--disable-dev-shm-usage',
-        '--disable-setuid-sandbox',
-        '--no-sandbox'
-      ]
+      headless: isProduction ? true : false,
+      slowMo: isProduction ? 0 : 100,
+      args: isProduction ? productionArgs : devArgs
     });
 
     this.context = await this.browser.newContext({
-      viewport: { width: 1920, height: 1080 },
+      viewport: isProduction
+        ? { width: 1280, height: 720 } // Smaller viewport in production to save memory
+        : { width: 1920, height: 1080 },
       ignoreHTTPSErrors: true,
       userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
       extraHTTPHeaders: {
