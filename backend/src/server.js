@@ -180,7 +180,7 @@ io.on('connection', (socket) => {
 
       // Start exploration
       let stepCount = 0;
-      const maxSteps = process.env.NODE_ENV === 'production' ? 12 : 35; // Reduced for memory-constrained environments
+      const maxSteps = 35; // Railway has 8GB RAM - full testing scope
       const state = new ExplorationState(); // Initialize exploration state
       session.explorationState = state;
       const testedMobileUrls = new Set(); // Track URLs already tested on mobile

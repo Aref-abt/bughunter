@@ -629,6 +629,8 @@ Provide a professional, detailed analysis suitable for a QA report.`;
       }));
 
       // Add text prompt first, then images
+      // Note: In production, screenshots are JPEG for memory savings
+      const isProduction = process.env.NODE_ENV === 'production';
       const messages = [{
         role: 'user',
         content: [
@@ -637,7 +639,7 @@ Provide a professional, detailed analysis suitable for a QA report.`;
             type: 'image',
             source: {
               type: 'base64',
-              media_type: 'image/png',
+              media_type: isProduction ? 'image/jpeg' : 'image/png',
               data: ss.screenshot
             }
           }))
@@ -659,7 +661,8 @@ Provide a professional, detailed analysis suitable for a QA report.`;
       });
 
       if (!response.ok) {
-        console.error('Failed to generate website brief');
+        const errorText = await response.text();
+        console.error('Failed to generate website brief:', response.status, errorText);
         return 'Website analysis could not be generated.';
       }
 
