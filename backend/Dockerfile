@@ -20,5 +20,5 @@ COPY . .
 # Expose port
 EXPOSE 10000
 
-# Start the application with memory constraints
-CMD ["node", "--max-old-space-size=384", "src/server.js"]
+# Start the application with memory constraints and garbage collection
+CMD ["node", "--max-old-space-size=384", "--expose-gc", "src/server.js"]

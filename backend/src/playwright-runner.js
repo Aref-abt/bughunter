@@ -142,11 +142,13 @@ class PlaywrightRunner {
       throw new Error('Page not initialized');
     }
 
-    const screenshot = await this.page.screenshot({ 
+    const isProduction = process.env.NODE_ENV === 'production';
+    const screenshot = await this.page.screenshot({
       fullPage: false,
-      type: 'png'
+      type: isProduction ? 'jpeg' : 'png', // JPEG is smaller
+      quality: isProduction ? 60 : undefined // Lower quality in production to save memory
     });
-    
+
     return screenshot.toString('base64');
   }
 

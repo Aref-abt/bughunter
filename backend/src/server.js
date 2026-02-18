@@ -180,7 +180,7 @@ io.on('connection', (socket) => {
 
       // Start exploration
       let stepCount = 0;
-      const maxSteps = 35; // Increased to ensure tasks complete
+      const maxSteps = process.env.NODE_ENV === 'production' ? 12 : 35; // Reduced for memory-constrained environments
       const state = new ExplorationState(); // Initialize exploration state
       session.explorationState = state;
       const testedMobileUrls = new Set(); // Track URLs already tested on mobile
@@ -665,6 +665,17 @@ io.on('connection', (socket) => {
 
         // Small delay between steps
         await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Aggressive memory cleanup in production
+        if (process.env.NODE_ENV === 'production') {
+          if (global.gc) {
+            global.gc(); // Force garbage collection if enabled
+          }
+          // Limit screenshot array size to prevent memory buildup
+          if (session.screenshots.length > 10) {
+            session.screenshots = session.screenshots.slice(-10); // Keep only last 10
+          }
+        }
 
         // Check if stop was requested
         if (session.status === 'stopping') {
