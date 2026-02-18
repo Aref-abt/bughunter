@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || (import.meta.env.PROD ? 'https://bughunter-backend.onrender.com' : 'http://localhost:3000');
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || (import.meta.env.PROD ? 'https://bughunter-backend-production.up.railway.app' : 'http://localhost:3000');
 
 class SocketClient {
   constructor() {
