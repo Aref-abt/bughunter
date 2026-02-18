@@ -1,6 +1,7 @@
-# Fly.io Launch configuration for BugHunter Backend
-app = "bughunter-backend" # Change this if name is taken
-primary_region = "sea" # Seattle
+# Fly.io configuration for BugHunter Backend
+# Note: Remove or change 'app' name if already taken
+app = "bughunter-backend"
+primary_region = "sea"
 
 [build]
   dockerfile = "Dockerfile"
@@ -12,10 +13,10 @@ primary_region = "sea" # Seattle
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = false
+  auto_stop_machines = true
   auto_start_machines = true
   min_machines_running = 0
 
-[[vm]]
+[vm]
   memory = '1gb'
   cpus = 1
