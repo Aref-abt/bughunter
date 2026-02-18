@@ -460,7 +460,7 @@ Now analyze the screenshot and identify ALL visual quality issues.`;
         },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 2048,
+          max_tokens: 4096, // Increased to allow more detailed bug reports
           messages: [{
             role: 'user',
             content: [

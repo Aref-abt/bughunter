@@ -151,12 +151,12 @@ io.on('connection', (socket) => {
           // Same type is required
           if (existing.type !== newBug.type) return false;
 
-          // For security issues, one per type is enough (e.g., only report HTTP once)
-          if (newBug.type === 'security-issue') return true;
-
-          // For other issues, check title similarity using keyword matching
+          // Check title similarity using keyword matching
           const existingTitle = existing.title.toLowerCase();
           const newTitle = newBug.title.toLowerCase();
+
+          // Exact match check first
+          if (existingTitle === newTitle) return true;
 
           // Extract key words (ignore common words)
           const commonWords = ['the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'mobile:', 'issue', 'problem', 'detected'];
@@ -169,12 +169,12 @@ io.on('connection', (socket) => {
           const existingWords = new Set(getKeyWords(existingTitle));
           const newWords = getKeyWords(newTitle);
 
-          // If 50%+ of key words match, consider it a duplicate (stricter deduplication)
+          // Require 85%+ keyword match to consider duplicate (less aggressive - was 50%)
           if (newWords.length === 0) return false;
           const matchCount = newWords.filter(word => existingWords.has(word)).length;
           const similarity = matchCount / newWords.length;
 
-          return similarity >= 0.5;
+          return similarity >= 0.85;
         });
       };
 
