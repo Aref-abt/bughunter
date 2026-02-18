@@ -1,0 +1,27 @@
+services:
+  # Backend Service
+  - type: web
+    name: bughunter-backend
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+
+  # Frontend Service
+  - type: web
+    name: bughunter-frontend
+    env: static
+    region: oregon
+    plan: free
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
