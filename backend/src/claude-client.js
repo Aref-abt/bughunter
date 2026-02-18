@@ -79,7 +79,7 @@ class ClaudeClient {
       : 'No interactive elements detected';
 
     const filledFieldsSummary = filledFields.length > 0
-      ? `\nFILLED FIELDS (DO NOT FILL AGAIN):\n${filledFields.map((f, i) => `${i + 1}. ${f}`).join('\n')}\n\n⚠️ YOU HAVE FILLED ${filledFields.length} FORM FIELD(S)! If you see a submit button, CLICK IT NOW before doing anything else!`
+      ? `\nFILLED FIELDS (DO NOT FILL AGAIN):\n${filledFields.map((f, i) => `${i + 1}. ${f}`).join('\n')}\n\nℹ️ Note: ${filledFields.length} form field(s) were filled previously. If you're on a NEW form (different selectors), you may fill and submit it ONCE. If this is the SAME form you already submitted, MOVE ON to test other features instead (buttons, navigation, links).`
       : '';
 
     // User guidance section
@@ -115,40 +115,128 @@ NAVIGATION CONTEXT:
 AVAILABLE INTERACTIVE ELEMENTS ON THIS PAGE (${interactiveElements.length}):
 ${elementsText}${filledFieldsSummary}
 
-INSTRUCTIONS - FOLLOW THIS PRIORITY ORDER:
-1. **ABSOLUTE HIGHEST PRIORITY**: If the testing goal mentions SPECIFIC BUTTON TEXT (e.g., "yellow button", "send message", "submit"), you MUST find and click the button that has that EXACT TEXT in the elements list - DO NOT click any other button with a generic selector!
-2. **EXPLORATION PRIORITY**: Explore different sections and functionality across the website - test navigation, links, buttons in header/sidebar/main content
-3. **VARIETY PRIORITY**: Test different types of interactions - don't focus on just one type (e.g., only forms). Mix navigation, clicks, and interactions.
-4. **FORM TESTING (ONCE ONLY)**: If you encounter an unfilled form that you haven't tested yet:
-   - Fill ONE form field with realistic test data
-   - If it's the last field in the form AND there's a submit button, click submit
-   - IMPORTANT: After testing ONE form successfully (filling + submitting), move on to explore other areas
-   - DO NOT spend multiple steps on the same form or similar forms - test once and move on
-5. **CRITICAL**: NEVER fill a field marked "✅ ALREADY FILLED - SKIP THIS"
-6. For DROPDOWN elements - select an option from them (don't just click)
-7. **DIVERSITY OVER DEPTH**: It's better to test many different features (navigation, links, buttons, one form) than to obsess over forms
-8. Test one area thoroughly before moving to another
-9. For complex apps, navigate progressively deeper into workflows
-10. Avoid revisiting the same pages unless testing different functionality
-11. Look for console errors, broken links, and UI issues
-12. **REMEMBER**: Forms are just ONE aspect of testing - prioritize exploring the full website functionality
+🎯 MISSION: COMPLETE REAL-WORLD SCENARIOS - NOT JUST CLICKING!
 
-ELEMENT INTERACTION RULES - CRITICAL:
-- **🔴 BUTTON TEXT MATCHING IS MANDATORY**: If testing goal mentions button text (e.g., "send message", "yellow button", "submit"), you MUST:
-  1. Read the AVAILABLE INTERACTIVE ELEMENTS list carefully
-  2. Find the button whose TEXT field matches (e.g., [BUTTON] "Send Message" → some-selector)
-  3. Use that button's EXACT selector - DO NOT use button[type="submit"] or any generic selector!
-  Example: Goal says "click send message button" → Find [BUTTON] "Send Message" → #submitBtn → Use SELECTOR: #submitBtn
+Your job is to TEST FEATURES like a real user, completing FULL WORKFLOWS from start to finish.
 
-- **CHECK BUTTON TEXT BEFORE CLICKING**: Look at the button text in the elements list - don't just click any button[type="submit"]
-- For INPUT/TEXTAREA elements: Use "fill" action to enter text with realistic data (but limit form testing to once per form type)
-- **NEVER fill the same field twice** - check if marked "✅ ALREADY FILLED"
-- For DROPDOWN elements: Use "select" action to choose an option
-- For LINK/BUTTON elements: Use "click" action to navigate or trigger - prioritize exploring different sections
-- **FORM COMPLETION**: If you've filled form fields (✅) and a submit button exists, you MAY click submit, but don't spend more than 2-3 steps on any single form
-- Use ONLY selectors from the "AVAILABLE INTERACTIVE ELEMENTS" list
+SCENARIO-BASED TESTING METHODOLOGY:
+
+1. **IDENTIFY THE PAGE TYPE** - What is this page designed for?
+   - E-commerce: Complete purchase flow (add to cart → checkout → payment)
+   - POS System: Complete transaction (scan/add items → calculate total → payment → receipt)
+   - Dashboard: Test EVERY feature, chart, filter, export button, settings
+   - Form/Application: Fill completely and submit, verify confirmation
+   - Social Media: Create post, like, comment, share - complete actions
+   - Search/Filter: Apply filters, sort, view results, test pagination
+
+2. **COMPLETE WORKFLOWS - DON'T ABANDON MID-SCENARIO**
+   ✅ GOOD: Add item to cart → Proceed to checkout → Fill shipping → Complete payment
+   ❌ BAD: Add item to cart → Leave and explore header links
+
+   ✅ GOOD: Fill login form → Click submit → Verify logged in → Test logout
+   ❌ BAD: Fill username field → Navigate away
+
+   ✅ GOOD: Apply dashboard filter → Wait for results → Export data → Reset filter
+   ❌ BAD: Click filter dropdown → Navigate to sidebar
+
+3. **TEST EVERY INTERACTIVE ELEMENT ON CURRENT PAGE**
+   - Click EVERY button you see (Submit, Cancel, Save, Export, Download, etc.)
+   - Fill EVERY form field with realistic data
+   - Select EVERY dropdown option (test at least one option)
+   - Click EVERY link in the navigation
+   - Test EVERY tab, accordion, modal trigger
+   - **DO NOT MOVE TO NEXT PAGE until you've interacted with 80%+ of elements on current page**
+
+4. **SCENARIO EXAMPLES BY PAGE TYPE**
+
+   **POS/Checkout System:**
+   - Add multiple items to cart/transaction
+   - Apply discounts or coupons
+   - Select payment method
+   - Complete full payment flow
+   - Print/view receipt
+
+   **Dashboard:**
+   - Test ALL filter options
+   - Click ALL tabs/sections
+   - Export/download data
+   - Test date range selectors
+   - Click ALL action buttons (Edit, Delete, View, etc.)
+   - Test search functionality
+
+   **Forms:**
+   - Fill ALL fields with realistic data
+   - Test validation (try invalid data)
+   - Submit form
+   - Verify success message or next step
+
+   **Navigation/Exploration:**
+   - Only explore other pages AFTER completing current page scenarios
+
+5. **SYSTEMATIC COVERAGE - ELEMENT BY ELEMENT**
+   - Work through elements from top to bottom
+   - Test each element type: buttons → forms → links → dropdowns
+   - Mark mentally: "Tested button X, now button Y, now form Z"
+   - Don't randomly jump around - be systematic
+
+6. **CRITICAL RULES**
+   - **NEVER** fill a field marked "✅ ALREADY FILLED - SKIP THIS"
+   - **ALWAYS** complete multi-step workflows (don't stop halfway)
+   - **ALWAYS** click submit buttons after filling forms
+   - **ALWAYS** verify the result of your action (success message, page change, etc.)
+   - If testing goal mentions specific button text - find that EXACT button in elements list
+   - Use ONLY selectors from AVAILABLE INTERACTIVE ELEMENTS list
+
+ACTION RULES FOR SCENARIO COMPLETION:
+
+**BUTTON ACTIONS** - Complete the workflow!
+- Submit buttons: ALWAYS click after filling form (complete the scenario)
+- Action buttons (Save, Export, Download, etc.): Click them and verify result
+- Navigation buttons: Click to explore, but complete current page first
+- Cancel/Close: Test these too, but after testing primary actions
+- **EXACT SELECTOR MATCHING**: If testing goal mentions button text, find EXACT match in elements list
+
+**FORM ACTIONS** - Fill completely, don't leave half-done!
+- Fill ALL form fields with realistic, valid data
+- Test dropdowns by selecting actual options
+- After filling ALL fields, click submit button ONCE
+- Wait for result (success message, redirect, error)
+- **AFTER SUCCESSFUL SUBMISSION: IMMEDIATELY MOVE ON TO OTHER FEATURES**
+- **DO NOT RE-TEST THE SAME FORM** - once submitted successfully, test other buttons/features instead
+- **NEVER** fill a field marked "✅ ALREADY FILLED"
+
+🚨 **ANTI-LOOP RULE - CRITICAL**:
+If you just submitted a form successfully (saw confirmation/redirect):
+  1. DO NOT fill/submit the same form again
+  2. DO NOT fill/submit similar forms again
+  3. MOVE ON to test OTHER features: buttons, navigation, links, different page sections
+  4. Consider form testing COMPLETE for this page
+  5. Test other interactive elements instead
+
+**WORKFLOW COMPLETION EXAMPLES:**
+
+Login Flow:
+Step 1: Fill username → Step 2: Fill password → Step 3: Click submit → Step 4: Verify logged in
+
+Purchase Flow:
+Step 1: Add to cart → Step 2: Click cart → Step 3: Proceed checkout → Step 4: Fill shipping → Step 5: Click pay
+
+Dashboard Testing:
+Step 1: Click first tab → Step 2: Test filters in tab → Step 3: Click export → Step 4: Move to next tab
+
+**INTERACTION PRIORITY:**
+1. Complete any started workflow (if form 50% filled, finish it)
+2. Test untested interactive elements on current page
+3. Click action buttons (primary actions first)
+4. Fill and submit any forms
+5. Test navigation elements
+6. Only move to new page when current page 80%+ tested
+
+**CRITICAL:**
+- Use ONLY selectors from "AVAILABLE INTERACTIVE ELEMENTS" list
 - Prefer specific selectors (IDs, names) over generic ones
-- If you navigate to the WRONG page by mistake, note it in your reasoning and continue testing from there
+- If action fails, note it and move to next element
+- Complete scenarios don't abandon them halfway
 
 ⚠️ CRITICAL WARNING: DO NOT click random buttons with generic selectors like button[type="submit"] or button.some-class!
 If the user specifies "yellow button that says 'send message'", you MUST scan the elements list for [BUTTON] "Send Message" and use its selector!

@@ -77,7 +77,14 @@ io.on('connection', (socket) => {
         navigationHistory: [],
         websiteBrief: null, // AI-generated website analysis
         userGuidance: null, // User guidance for next AI decision
-        status: 'running'
+        status: 'running',
+        // Page coverage tracking for scenario-based testing
+        currentPageUrl: null,
+        currentPageElements: [], // All interactive elements on current page
+        testedElements: new Set(), // Selectors of elements we've interacted with
+        currentPageCoverage: 0, // Percentage of page elements tested
+        testedPages: new Map(), // URL -> coverage percentage
+        mobileTestingCompleted: false // Flag to prevent mobile interrupting scenarios
       };
       activeSessions.set(sessionId, session);
 
@@ -261,12 +268,14 @@ io.on('connection', (socket) => {
           }
         }
 
-        // 3. Mobile Responsiveness Testing (only if URL not tested on mobile yet)
-        if (stepCount % 3 === 0 && !testedMobileUrls.has(pageUrl)) {
+        // 3. Mobile Responsiveness Testing (only after page is well-tested to avoid interrupting scenarios)
+        // Test mobile when: page coverage >= 70% AND not yet tested on mobile AND not already testing mobile
+        if (session.currentPageCoverage >= 70 && !session.mobileTestingCompleted && !testedMobileUrls.has(pageUrl)) {
           testedMobileUrls.add(pageUrl); // Mark this URL as tested on mobile
+          session.mobileTestingCompleted = true; // Prevent re-testing mobile on same page
 
           socket.emit('progress', {
-            message: `📱 Testing mobile responsiveness...`,
+            message: `📱 Testing mobile responsiveness (page ${session.currentPageCoverage}% tested)...`,
             percentage: progress
           });
 
@@ -382,9 +391,38 @@ io.on('connection', (socket) => {
         // Get interactive elements on the page
         const interactiveElements = await playwrightRunner.getInteractiveElements();
 
+        // === PAGE COVERAGE TRACKING FOR SCENARIO-BASED TESTING ===
+
+        // Check if we moved to a new page
+        if (session.currentPageUrl !== pageUrl) {
+          // Save coverage of previous page
+          if (session.currentPageUrl) {
+            session.testedPages.set(session.currentPageUrl, session.currentPageCoverage);
+            console.log(`✅ Completed page: ${session.currentPageUrl} (${session.currentPageCoverage}% coverage)`);
+          }
+
+          // Reset for new page
+          session.currentPageUrl = pageUrl;
+          session.currentPageElements = interactiveElements.map(e => e.selector);
+          session.testedElements = new Set();
+          session.currentPageCoverage = 0;
+          session.mobileTestingCompleted = false; // Reset mobile testing flag for new page
+
+          console.log(`📄 New page detected: ${pageUrl} (${interactiveElements.length} interactive elements)`);
+        }
+
+        // Calculate current page coverage
+        if (session.currentPageElements.length > 0) {
+          session.currentPageCoverage = Math.round(
+            (session.testedElements.size / session.currentPageElements.length) * 100
+          );
+        }
+
+        console.log(`📊 Page coverage: ${session.currentPageCoverage}% (${session.testedElements.size}/${session.currentPageElements.length} elements tested)`);
+
         // Ask Claude what to do next
         socket.emit('progress', {
-          message: `🤖 AI analyzing page: "${pageTitle}"...`,
+          message: `🤖 AI analyzing page: "${pageTitle}" (${session.currentPageCoverage}% tested)...`,
           percentage: progress
         });
 
@@ -472,6 +510,9 @@ io.on('connection', (socket) => {
 
             if (clickResult.success) {
               state.recordSuccessfulInteraction(decision.selector, 'click');
+              // Track element as tested for coverage
+              session.testedElements.add(decision.selector);
+              console.log(`✅ Tested element: ${decision.selector} (${session.testedElements.size}/${session.currentPageElements.length})`);
               await playwrightRunner.waitForNavigation();
             } else {
               state.recordFailedSelector(decision.selector, clickResult.error);
@@ -496,6 +537,9 @@ io.on('connection', (socket) => {
             };
             if (selectSuccess) {
               state.recordSuccessfulInteraction(decision.selector, 'select');
+              // Track element as tested for coverage
+              session.testedElements.add(decision.selector);
+              console.log(`✅ Tested dropdown: ${decision.selector} (${session.testedElements.size}/${session.currentPageElements.length})`);
               await playwrightRunner.waitForNavigation();
               socket.emit('progress', {
                 message: `✅ Selected dropdown option`,
@@ -544,8 +588,11 @@ io.on('connection', (socket) => {
                 fields.forEach(field => {
                   if (field && field.selector) {
                     state.recordSuccessfulInteraction(field.selector, 'fill');
+                    // Track each filled field for coverage
+                    session.testedElements.add(field.selector);
                   }
                 });
+                console.log(`✅ Tested ${fields.length} form field(s) (${session.testedElements.size}/${session.currentPageElements.length})`);
               }
               await playwrightRunner.waitForNavigation();
             } else {
